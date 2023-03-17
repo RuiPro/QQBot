@@ -1,0 +1,69 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "QQBot",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "QQ::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-QQ-Debug-21087a2d672b65448056.json",
+					"name" : "QQ",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "QQBot.out::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-QQBot.out-Debug-07bdbbae06177298615e.json",
+					"name" : "QQBot.out",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/root/.vs/QQBot/8b7584bb-2f2e-413e-8a61-77db4b89a5e7/out/build/Linux-GCC-Debug",
+		"source" : "/root/.vs/QQBot/8b7584bb-2f2e-413e-8a61-77db4b89a5e7/src"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 5
+	}
+}
