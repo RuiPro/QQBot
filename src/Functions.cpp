@@ -1,5 +1,21 @@
 #include "Functions.h"
 
+void CorePlugin(const string& msg, QQBot* bot) {
+	std::cout << "\033[35m[Debug]\033[0m\t" << msg;
+	json QQevent = json::parse(msg, NULL, false);
+	if (QQevent["post_type"] != "notice") return;
+	if (QQevent["notice_type"] == "group_decrease" || QQevent["notice_type"] == "group_increase") {
+		std::cout << "\033[34m[Info]\033[0m\t" << "QQBot group list changed." << std::endl;
+		bot->GetGroupList();
+		bot->PrintGroupList();
+	}
+	if (QQevent["notice_type"] == "friend_add") {
+		std::cout << "\033[34m[Info]\033[0m\t" << "QQBot friend list changed." << std::endl;
+		bot->GetFriendList();
+		bot->PrintFriendList();
+	}
+}
+
 void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 	auto startTime = std::chrono::system_clock::now();
 	MainProcess* arg = (MainProcess*)cb_arg;
@@ -58,11 +74,12 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 void TickEventCB(evutil_socket_t fd, short event_t, void* cb_arg) {
 	MainProcess* arg = (MainProcess*)cb_arg;
 	for (auto& plugin : *arg->plugins_list_) {
-		plugin->PluginMain();
+		arg->thread_pool_->AddTask((void(BasicPlugin::*)()) & BasicPlugin::PluginMain, plugin->GetBasicPlugin());
 	}
 	string a_msg;
 	if (arg->MsgQueueGet(a_msg) != 0) return;
+	CorePlugin(a_msg, arg->bot_);
 	for (auto& plugin : *arg->plugins_list_) {
-		plugin->PluginMain(a_msg);
+		arg->thread_pool_->AddTask((void(BasicPlugin::*)(const string&))&BasicPlugin::PluginMain, plugin->GetBasicPlugin(), a_msg);
 	}
 }

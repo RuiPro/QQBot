@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <mutex>
 #include <unordered_set>
 #include "QQMessage.h"
 #include "../json/json.hpp"
@@ -95,7 +96,7 @@ public:
 	int GetBasicInfo();												// 获取QQ号和QQ昵称
 	int GetFriendList();											// 获取QQ好友列表，使用map存储，哈希根据是QQ号
 	int GetGroupList();												// 获取QQ群聊列表，使用map存储，哈希根据是群号
-	int GetAllinfo();												// 以上三个API的封装
+	int GetAllInfo();												// 以上三个API的封装
 	int GetGroupMemberList(QQGroup& group);							// 获取群聊成员列表，使用map存储，哈希根据是QQ号
 	string GetAccessToken() const;									// 获取配置的AccessToken
 	int SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg);	// 发送私聊信息
@@ -110,6 +111,7 @@ public:
 	
 	static string GetQQHeaderImageURL(unsigned int qq_id);			// 使用QQ号获取QQ头像链接
 private:
+	mutex QQ_lock_;
 	unsigned int QQBot_id_ = 0;
 	QQFriend administrator_ = QQFriend(0);
 	string QQBot_nickname_;

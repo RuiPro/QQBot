@@ -71,6 +71,9 @@ public:
 	void PluginMain(const string& msg) {
 		plugin->PluginMain(msg);
 	}
+	BasicPlugin* GetBasicPlugin() {
+		return plugin;
+	}
 private:
 	bool plugin_status_ = Good_Plugin;
 	BasicPlugin* (*loadPlugin)(QQBot*, const string&);

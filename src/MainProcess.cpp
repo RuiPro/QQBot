@@ -59,10 +59,12 @@ MainProcess::MainProcess(int argc, char** argv) {
 		status_flag_ = STATUS_BAD;
 		return;
 	}
-	if (bot_->GetAllinfo() != 0) {
+	if (bot_->GetAllInfo() != 0) {
 		status_flag_ = STATUS_BAD;
 		return;
 	}
+	bot_->PrintFriendList();
+	bot_->PrintGroupList();
 }
 
 MainProcess::~MainProcess() {

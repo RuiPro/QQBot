@@ -3,6 +3,8 @@
 
 #include "MainProcess.h"
 
+void CorePlugin(const string& msg, QQBot* bot);
+
 // libevent的IO回调，当go-cqhttp有HTTP请求的时候调用
 void HTTPRequestCB(struct evhttp_request* req, void* arg);
 
