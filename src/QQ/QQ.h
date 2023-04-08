@@ -1,6 +1,8 @@
 #ifndef QQ_H
 #define QQ_H
 
+#define LIBQQ_VERSION "0.9.2"
+
 #include <string>
 #include <vector>
 #include <iostream>
@@ -101,13 +103,11 @@ public:
 	string GetAccessToken() const;									// 获取配置的AccessToken
 	int SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg);	// 发送私聊信息
 	int SendGroupMsg(const QQGroup& group, QQMessage& msg);			// 发送群聊信息
-	int Poke(const QQGroup& group, const QQGroupMember& member);	// 拍一拍某个群内的某个群内的某个成员
-	int Poke(const QQFriend& qfriend);								// 拍一拍某个好友
 	int DeleteFriend(const QQFriend& qfriend);						// 删除好友
 	int DeleteGroup(const QQGroup& group);							// 退出群聊
 	int WithdrawMsg(int message_id);								// 撤回一条消息
-	bool CanSendImage();											// 判断QQ号是否可以发送图片
-	bool CanSendRecord();											// 判断QQ号是否可以发送录音
+	bool CanSendImage();											// 判断QQ号是否可以发送图片？
+	bool CanSendRecord();											// 判断QQ号是否可以发送录音？
 	
 	static string GetQQHeaderImageURL(unsigned int qq_id);			// 使用QQ号获取QQ头像链接
 private:

@@ -95,13 +95,11 @@ public:
 	int GetBasicInfo();												// 获取QQ号和QQ昵称
 	int GetFriendList();											// 获取QQ好友列表，使用map存储，哈希根据是QQ号
 	int GetGroupList();												// 获取QQ群聊列表，使用map存储，哈希根据是群号
-	int GetAllinfo();												// 以上三个API的封装
+	int GetAllInfo();												// 以上三个API的封装
 	int GetGroupMemberList(QQGroup& group);							// 获取群聊成员列表，使用map存储，哈希根据是QQ号
 	string GetAccessToken() const;									// 获取配置的AccessToken
 	int SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg);	// 发送私聊信息
 	int SendGroupMsg(const QQGroup& group, QQMessage& msg);			// 发送群聊信息
-	int Poke(const QQGroup& group, const QQGroupMember& member);	// 拍一拍某个群内的某个群内的某个成员
-	int Poke(const QQFriend& qfriend);								// 拍一拍某个好友
 	int DeleteFriend(const QQFriend& qfriend);						// 删除好友
 	int DeleteGroup(const QQGroup& group);							// 退出群聊
 	int WithdrawMsg(int message_id);								// 撤回一条消息

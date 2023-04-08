@@ -7,14 +7,8 @@ add_executable (QQBot.out
  "src/ThreadPool/ThreadPool.hpp"
  "src/ThreadPool/ThreadPool.cpp"
  "src/json/json.hpp"
- "src/BasicPlugin.h"
- "src/QQ/QQ.h"
- "src/QQ/QQMessage.h"
- "src/MainProcess.h"
  "src/MainProcess.cpp"
- "src/Functions.h"
- "src/Functions.cpp"
- "src/LoadPlugin.h")
+ "src/Functions.cpp")
 
 include_directories(${PROJECT_SOURCE_DIR}/src/include/libevent)
 include_directories(${PROJECT_SOURCE_DIR}/src/include/libcurl)

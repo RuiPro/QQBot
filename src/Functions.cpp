@@ -1,7 +1,6 @@
 #include "Functions.h"
 
 void CorePlugin(const string& msg, QQBot* bot) {
-	std::cout << "\033[35m[Debug]\033[0m\t" << msg;
 	json QQevent = json::parse(msg, NULL, false);
 	if (QQevent["post_type"] != "notice") return;
 	if (QQevent["notice_type"] == "group_decrease" || QQevent["notice_type"] == "group_increase") {

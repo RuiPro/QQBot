@@ -1,6 +1,7 @@
 ## 关于此
 
 这是一个C/C++编写的、使用[go-cqhttp](https://github.com/Mrs4s/go-cqhttp)的QQBot。目前还在开发阶段(可能会咕咕咕)
+
 只有Linux版本，没有添加其他平台的计划
 
 使用的库：

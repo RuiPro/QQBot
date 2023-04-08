@@ -22,6 +22,7 @@
 using namespace std;
 using json = nlohmann::json;
 
+#define VERSION "0.9.2"
 #define STATUS_OK true
 #define STATUS_BAD false
 

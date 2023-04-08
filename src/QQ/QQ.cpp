@@ -1,6 +1,7 @@
 #include <curl.h>
 #include <chrono>
 #include "QQ.h"
+#include "QQ.h"
 
 int QQBot::PrintCqhttpVersion() {
 	if (cqhttp_addr_.empty()) return -1;
@@ -77,7 +78,7 @@ void QQBot::PrintFriendList() {
 	for (auto& qfriend : QQBot_friend_list_) {
 		cout << " ├─ " << qfriend.name_ << "(" << qfriend.id_ << ")" << endl;
 	}
-	cout << " └───────── \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
+	cout << "  \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
 	QQ_lock_.unlock();
 }
 void QQBot::PrintGroupList() {
@@ -86,7 +87,7 @@ void QQBot::PrintGroupList() {
 	for (auto& group : QQBot_group_list_) {
 		cout << " ├─ " << group.name_ << "(" << group.id_ << ")" << endl;
 	}
-	cout << " └───────── \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
+	cout << "  \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
 	QQ_lock_.unlock();
 }
 
@@ -212,7 +213,7 @@ string QQBot::GetAccessToken() const {
 
 int QQBot::SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg) {
 	if (cqhttp_addr_.empty()) return -1;
-	if (msg.IsGroupMsg()) return -1;
+	if (!msg.CanSendToPrivate()) return -1;
 	string URL = "http://" + cqhttp_addr_ + "/send_private_msg";
 	json send_json;
 	send_json["user_id"] = qfriend.id_;
@@ -235,6 +236,7 @@ int QQBot::SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg) {
 
 int QQBot::SendGroupMsg(const QQGroup& group, QQMessage& msg) {
 	if (cqhttp_addr_.empty()) return -1;
+	if (!msg.CanSendToGroup()) return -1;
 	string URL = "http://" + cqhttp_addr_ + "/send_group_msg";
 
 	json send_json;
@@ -385,41 +387,6 @@ int QQBot::SendPOSTRequest(const string& URL, const string& send_buffer, string&
 	} while (false);
 	curl_easy_cleanup(handle);
 	return -1;
-}
-
-int QQBot::Poke(const QQGroup& group, const QQGroupMember& member) {
-	if (cqhttp_addr_.empty()) return -1;
-	if (group.group_member_list_.find(member) == group.group_member_list_.end()) return -1;
-	QQ_lock_.lock();
-	if (QQBot_group_list_.find(group) == QQBot_group_list_.end()) return -1;
-	QQ_lock_.unlock();
-	string poke = "[CQ:poke,qq=" + to_string(member.id_) + "]";
-	string URL = "http://" + cqhttp_addr_ + "/send_group_msg";
-	json send_json;
-	send_json["group_id"] = group.id_;
-	send_json["message"] = poke;
-	send_json["auto_escape"] = false;
-	string send_buffer = send_json.dump();
-	string data_buffer;
-	if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-	return 0;
-}
-
-int QQBot::Poke(const QQFriend& qfriend) {
-	if (cqhttp_addr_.empty()) return -1;
-	QQ_lock_.lock();
-	if (QQBot_friend_list_.find(qfriend) == QQBot_friend_list_.end()) return -1;
-	QQ_lock_.unlock();
-	string poke = "[CQ:poke,qq=" + to_string(qfriend.id_) + "]";
-	string URL = "http://" + cqhttp_addr_ + "/send_group_msg";
-	json send_json;
-	send_json["user_id"] = qfriend.id_;
-	send_json["message"] = poke;
-	send_json["auto_escape"] = false;
-	string send_buffer = send_json.dump();
-	string data_buffer;
-	if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-	return 0;
 }
 
 int QQBot::DeleteFriend(const QQFriend& qfriend) {
