@@ -1,9 +1,12 @@
 #ifndef QQ_H
 #define QQ_H
 
+#define LIBQQ_VERSION "0.9.2"
+
 #include <string>
 #include <vector>
 #include <iostream>
+#include <mutex>
 #include <unordered_set>
 #include "QQMessage.h"
 #include "../json/json.hpp"
@@ -103,11 +106,12 @@ public:
 	int DeleteFriend(const QQFriend& qfriend);						// 删除好友
 	int DeleteGroup(const QQGroup& group);							// 退出群聊
 	int WithdrawMsg(int message_id);								// 撤回一条消息
-	bool CanSendImage();											// 判断QQ号是否可以发送图片
-	bool CanSendRecord();											// 判断QQ号是否可以发送录音
+	bool CanSendImage();											// 判断QQ号是否可以发送图片？
+	bool CanSendRecord();											// 判断QQ号是否可以发送录音？
 	
 	static string GetQQHeaderImageURL(unsigned int qq_id);			// 使用QQ号获取QQ头像链接
 private:
+	mutex QQ_lock_;
 	unsigned int QQBot_id_ = 0;
 	QQFriend administrator_ = QQFriend(0);
 	string QQBot_nickname_;
