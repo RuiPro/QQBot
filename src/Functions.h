@@ -2,6 +2,7 @@
 #define FUNCTIONS_H
 
 #include "MainProcess.h"
+#include "output&logs/output.h"
 
 void CorePlugin(const string& msg, QQBot* bot);
 

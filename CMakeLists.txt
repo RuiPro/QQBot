@@ -13,8 +13,12 @@ add_executable (QQBot.out
 include_directories(${PROJECT_SOURCE_DIR}/src/include/libevent)
 include_directories(${PROJECT_SOURCE_DIR}/src/include/libcurl)
 
+add_library(OutputAndLogs SHARED  "src/output&logs/output.cpp")
+target_link_libraries(QQBot.out OutputAndLogs)
+
 add_library(QQ SHARED  "src/QQ/QQMessage.cpp"  "src/QQ/QQ.cpp")
 target_link_libraries(QQBot.out QQ)
+target_link_libraries(QQ OutputAndLogs)
 
 target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libcurl/libcurl.a")
 target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent.a")

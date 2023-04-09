@@ -1,3 +1,7 @@
+#include "QQ.h"
+#include "QQ.h"
+#include "QQ.h"
+#include "QQ.h"
 #include <curl.h>
 #include <chrono>
 #include "QQ.h"
@@ -13,10 +17,10 @@ int QQBot::PrintCqhttpVersion() {
 		string version = json_data["data"]["app_version"];
 		version.pop_back();
 		version.erase(0, 1);
-		std::cout << "\033[34m[Info]\033[0m\t" << "Using go-cqhttp: " << version << std::endl;
+		Info() << "Using go-cqhttp: " << version << std::endl;
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return -1;
 	}
@@ -28,7 +32,7 @@ int QQBot::SetAdmin(unsigned int admin_id) {
 		administrator_ = QQFriend(admin_id);
 	}
 	else {
-		std::cout << "\033[31m[Error]\033[0m\t" << "The administrator is not a friend of QQ bot, setting failed." << std::endl;
+		Error() << "The administrator is not a friend of QQ bot, setting failed." << std::endl;
 		QQ_lock_.unlock();
 		return -1;
 	}
@@ -72,13 +76,41 @@ int QQBot::GetGroupNum() {
 	QQ_lock_.unlock();
 	return ret;
 }
+bool QQBot::hasQQFriend(unsigned int friend_id) {
+	QQ_lock_.lock();
+	auto iter = QQBot_friend_list_.find(QQFriend(friend_id));
+	QQ_lock_.unlock();
+	if (iter != QQBot_friend_list_.end())return true;
+	return false;
+}
+bool QQBot::hasQQGroup(unsigned int group_id) {
+	QQ_lock_.lock();
+	auto iter = QQBot_group_list_.find(QQGroup(group_id));
+	QQ_lock_.unlock();
+	if (iter != QQBot_group_list_.end())return true;
+	return false;
+}
+const QQFriend QQBot::GetQQFriend(unsigned int friend_id) {
+	QQ_lock_.lock();
+	auto iter = QQBot_friend_list_.find(QQFriend(friend_id));
+	QQ_lock_.unlock();
+	if (iter != QQBot_friend_list_.end())return (*iter);
+	return QQFriend();
+}
+const QQGroup QQBot::GetQQGroup(unsigned int group_id) {
+	QQ_lock_.lock();
+	auto iter = QQBot_group_list_.find(QQGroup(group_id));
+	QQ_lock_.unlock();
+	if (iter != QQBot_group_list_.end())return (*iter);
+	return QQGroup();
+}
 void QQBot::PrintFriendList() {
 	cout << " ┌───────── \033[34mQQ friends list\033[0m" << endl;
 	QQ_lock_.lock();
 	for (auto& qfriend : QQBot_friend_list_) {
 		cout << " ├─ " << qfriend.name_ << "(" << qfriend.id_ << ")" << endl;
 	}
-	cout << "  \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
+	cout << " \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
 	QQ_lock_.unlock();
 }
 void QQBot::PrintGroupList() {
@@ -87,7 +119,7 @@ void QQBot::PrintGroupList() {
 	for (auto& group : QQBot_group_list_) {
 		cout << " ├─ " << group.name_ << "(" << group.id_ << ")" << endl;
 	}
-	cout << "  \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
+	cout << " \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
 	QQ_lock_.unlock();
 }
 
@@ -101,11 +133,11 @@ int QQBot::GetBasicInfo() {
 		QQ_lock_.lock();
 		QQBot_id_ = json_data["data"]["user_id"];
 		QQBot_nickname_ = json_data["data"]["nickname"];
-		std::cout << "\033[34m[Info]\033[0m\t" << "Bot information: " << QQBot_nickname_ << "(" << QQBot_id_ << ")" << std::endl;
+		Info() << "Bot information: " << QQBot_nickname_ << "(" << QQBot_id_ << ")" << std::endl;
 		QQ_lock_.unlock();
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return -1;
 	}
@@ -124,11 +156,11 @@ int QQBot::GetFriendList() {
 		for (auto& x : json_data["data"]) {
 			QQBot_friend_list_.insert(QQFriend(x["user_id"], x["nickname"], x["remark"]));
 		}
-		std::cout << "\033[34m[Info]\033[0m\t" << "Bot's number of friends: " << QQBot_friend_list_.size() << std::endl;
+		Info() << "Bot's number of friends: " << QQBot_friend_list_.size() << std::endl;
 		QQ_lock_.unlock();
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return -1;
 	}
@@ -153,11 +185,11 @@ int QQBot::GetGroupList() {
 			QQ_lock_.unlock();
 		}
 		QQ_lock_.lock();
-		std::cout << "\033[34m[Info]\033[0m\t" << "Bot's number of groups: " << QQBot_group_list_.size() << std::endl;
+		Info() << "Bot's number of groups: " << QQBot_group_list_.size() << std::endl;
 		QQ_lock_.unlock();
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return -1;
 	}
@@ -166,19 +198,19 @@ int QQBot::GetGroupList() {
 
 int QQBot::GetAllInfo() {
 	if (cqhttp_addr_.empty()) {
-		std::cout << "\033[31m[Error]\033[0m\t" << "go-cqhttp address not set!" << std::endl;
+		Error() << "go-cqhttp address not set!" << std::endl;
 		return -1;
 	}
 	if (GetBasicInfo() != 0) {
-		std::cout << "\033[31m[Error]\033[0m\t" << "Failed to get QQBot information from go-cqhttp!" << std::endl;
+		Error() << "Failed to get QQBot information from go-cqhttp!" << std::endl;
 		return -1;
 	}
 	if (GetFriendList() != 0) {
-		std::cout << "\033[31m[Error]\033[0m\t" << "Failed to get QQBot friend list from go-cqhttp!" << std::endl;
+		Error() << "Failed to get QQBot friend list from go-cqhttp!" << std::endl;
 		return -1;
 	}
 	if (GetGroupList() != 0) {
-		std::cout << "\033[31m[Error]\033[0m\t" << "Failed to get QQBot group list from go-cqhttp!" << std::endl;
+		Error() << "Failed to get QQBot group list from go-cqhttp!" << std::endl;
 		return -1;
 	}
 	return 0;
@@ -200,7 +232,7 @@ int QQBot::GetGroupMemberList(QQGroup& group) {
 		}
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return -1;
 	}
@@ -227,7 +259,7 @@ int QQBot::SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg) {
 		msg.SetMsgID(json_data["data"]["message_id"]);
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return -1;
 	}
@@ -251,7 +283,7 @@ int QQBot::SendGroupMsg(const QQGroup& group, QQMessage& msg) {
 		msg.SetMsgID(json_data["data"]["message_id"]);
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return -1;
 	}
@@ -266,7 +298,7 @@ size_t curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
 int QQBot::SendGETRequest(const string& URL, string& recv_buffer) {
 	CURL* handle = curl_easy_init();
 	if (handle == nullptr) {
-		std::cout << "\033[31m[Error]\033[0m\t" << "CURL init faild." << std::endl;
+		Error() << "CURL init faild." << std::endl;
 		return -1;
 	}
 	if (!access_token_.empty()) {										// 消息报头
@@ -294,28 +326,28 @@ int QQBot::SendGETRequest(const string& URL, string& recv_buffer) {
 				recv_buffer = reply_data;
 			}
 			else if (reply_code == 401) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "From go-cqhttp: Missing access token!" << std::endl;
+				Error() << "From go-cqhttp: Missing access token!" << std::endl;
 				break;
 			}
 			else if (reply_code == 402) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "From go-cqhttp: Wrong access token!" << std::endl;
+				Error() << "From go-cqhttp: Wrong access token!" << std::endl;
 				break;
 			}
 			else if (reply_code == 403) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "From go-cqhttp: Content-Type unsupport!" << std::endl;
+				Error() << "From go-cqhttp: Content-Type unsupport!" << std::endl;
 				break;
 			}
 			else if (reply_code == 404) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "From go-cqhttp: This API is not exist: " << URL << std::endl;
+				Error() << "From go-cqhttp: This API is not exist: " << URL << std::endl;
 				break;
 			}
 		}
 		else if (ret_code == CURLE_OPERATION_TIMEDOUT) {
-			std::cout << "\033[33m[Warn]\033[0m\t" << "Waiting go-cqhttp time out!" << std::endl;
+			Warn() << "Waiting go-cqhttp time out!" << std::endl;
 			break;
 		}
 		else {
-			std::cout << "\033[31m[Error]\033[0m\t" << "Failed to communicate with go-cqhttp. Curl return code: " << ret_code << std::endl;
+			Error() << "Failed to communicate with go-cqhttp. Curl return code: " << ret_code << std::endl;
 			break;
 		}
 		curl_easy_cleanup(handle);
@@ -328,7 +360,7 @@ int QQBot::SendGETRequest(const string& URL, string& recv_buffer) {
 int QQBot::SendPOSTRequest(const string& URL, const string& send_buffer, string& recv_buffer) {
 	CURL* handle = curl_easy_init();
 	if (handle == nullptr) {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "CURL init faild." << std::endl;
+		Warn() << "CURL init faild." << std::endl;
 		return -1;
 	}
 	curl_easy_setopt(handle, CURLOPT_URL, URL.c_str());					// 设置URL
@@ -358,28 +390,28 @@ int QQBot::SendPOSTRequest(const string& URL, const string& send_buffer, string&
 				recv_buffer = reply_data;
 			}
 			else if (reply_code == 401) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "From go-cqhttp: Missing access token!" << std::endl;
+				Error() << "From go-cqhttp: Missing access token!" << std::endl;
 				break;
 			}
 			else if (reply_code == 402) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "From go-cqhttp: Wrong access token!" << std::endl;
+				Error() << "From go-cqhttp: Wrong access token!" << std::endl;
 				break;
 			}
 			else if (reply_code == 403) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "From go-cqhttp: Content-Type unsupport!" << std::endl;
+				Error() << "From go-cqhttp: Content-Type unsupport!" << std::endl;
 				break;
 			}
 			else if (reply_code == 404) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "From go-cqhttp: This API is not exist: " << URL << std::endl;
+				Error() << "From go-cqhttp: This API is not exist: " << URL << std::endl;
 				break;
 			}
 		}
 		else if (ret_code == CURLE_OPERATION_TIMEDOUT) {
-			std::cout << "\033[33m[Warn]\033[0m\t" << "Waiting go-cqhttp time out!" << std::endl;
+			Warn() << "Waiting go-cqhttp time out!" << std::endl;
 			break;
 		}
 		else {
-			std::cout << "\033[31m[Error]\033[0m\t" << "Failed to communicate with go-cqhttp. Curl return code: " << ret_code << std::endl;
+			Error() << "Failed to communicate with go-cqhttp. Curl return code: " << ret_code << std::endl;
 			break;
 		}
 		curl_easy_cleanup(handle);
@@ -391,7 +423,7 @@ int QQBot::SendPOSTRequest(const string& URL, const string& send_buffer, string&
 
 int QQBot::DeleteFriend(const QQFriend& qfriend) {
 	if (cqhttp_addr_.empty()) return -1;
-	std::cout << "\033[34m[Info]\033[0m\t" << "Delete friend " << qfriend.name_ << "(" << qfriend.id_ << ")" << std::endl;
+	Info() << "Delete friend " << qfriend.name_ << "(" << qfriend.id_ << ")" << std::endl;
 	string URL = "http://" + cqhttp_addr_ + "/delete_friend";
 	json send_json;
 	send_json["user_id"] = qfriend.id_;
@@ -406,7 +438,7 @@ int QQBot::DeleteFriend(const QQFriend& qfriend) {
 
 int QQBot::DeleteGroup(const QQGroup& group) {
 	if (cqhttp_addr_.empty()) return -1;
-	std::cout << "\033[33m[Warn]\033[0m\t" << "leave group " << group.name_ << "(" << group.id_ << ")" << std::endl;
+	Warn() << "leave group " << group.name_ << "(" << group.id_ << ")" << std::endl;
 	string URL = "http://" + cqhttp_addr_ + "/set_group_leave";
 	json send_json;
 	send_json["group_id"] = group.id_;
@@ -440,7 +472,7 @@ bool QQBot::CanSendImage() {
 		return json_data["data"]["yes"];
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return false;
 	}
@@ -457,7 +489,7 @@ bool QQBot::CanSendRecord() {
 		return json_data["data"]["yes"];
 	}
 	else if (json_data["status"] == "failed") {
-		std::cout << "\033[33m[Warn]\033[0m\t" << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
 			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
 		return false;
 	}

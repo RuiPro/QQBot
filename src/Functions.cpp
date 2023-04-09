@@ -4,12 +4,12 @@ void CorePlugin(const string& msg, QQBot* bot) {
 	json QQevent = json::parse(msg, NULL, false);
 	if (QQevent["post_type"] != "notice") return;
 	if (QQevent["notice_type"] == "group_decrease" || QQevent["notice_type"] == "group_increase") {
-		std::cout << "\033[34m[Info]\033[0m\t" << "QQBot group list changed." << std::endl;
+		Info() << "QQBot group list changed." << std::endl;
 		bot->GetGroupList();
 		bot->PrintGroupList();
 	}
 	if (QQevent["notice_type"] == "friend_add") {
-		std::cout << "\033[34m[Info]\033[0m\t" << "QQBot friend list changed." << std::endl;
+		Info() << "QQBot friend list changed." << std::endl;
 		bot->GetFriendList();
 		bot->PrintFriendList();
 	}
@@ -34,7 +34,7 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 		while (recv_size > counter) {
 			ssize_t once_size = evbuffer_remove(recv_buffer, recv_data, recv_size);
 			if (once_size == -1) {
-				std::cout << "\033[31m[Error]\033[0m\t" << "Failed to get data from input buffer!" << std::endl;
+				Error() << "Failed to get data from input buffer!" << std::endl;
 				return;
 			}
 			else {
@@ -59,13 +59,13 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 			} while (false);
 		}
 		else {
-			std::cout << "\033[33m[Warn]\033[0m\t" << "The size of data received doesn't match client report." << std::endl;
+			Warn() << "The size of data received doesn't match client report." << std::endl;
 		}
 		delete[] recv_data;
 		std::chrono::duration<double> runTime = std::chrono::system_clock::now() - startTime;
 		auto runTimeCount = runTime.count();
 		if (runTimeCount > 4.75) {
-			std::cout << "\033[33m[Warn]\033[0m\t" << "HTTPRequestCB run time: " << fixed << setprecision(2) << runTimeCount << " is longer than 5s." << std::endl;
+			Warn() << "HTTPRequestCB run time: " << fixed << setprecision(2) << runTimeCount << " is longer than 5s." << std::endl;
 		}
 	}
 }
