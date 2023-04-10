@@ -30,7 +30,6 @@ string GetSystemTime() {
 		now_time.append("0");
 	}
 	now_time.append(to_string(local_time->tm_sec));
-	now_time.append("]");
 	return now_time;
 }
 
@@ -41,6 +40,14 @@ Console_Warn* Console_Warn::cWarn_ = new Console_Warn;
 Plugin_Console_Error* Plugin_Console_Error::pError_ = new Plugin_Console_Error;
 Plugin_Console_Info* Plugin_Console_Info::pInfo_ = new Plugin_Console_Info;
 Plugin_Console_Warn* Plugin_Console_Warn::pWarn_ = new Plugin_Console_Warn;
+
+string Console_Error::tag_ = " \033[31mError\033[0m] ";
+string Console_Info::tag_ = " \033[34mInfo\033[0m] ";
+string Console_Warn::tag_ = " \033[33mWarn\033[0m] ";
+
+string Plugin_Console_Error::tag_ = " \033[31mError\033[0m]\033[32m[P]\033[0m ";
+string Plugin_Console_Info::tag_ = " \033[34mInfo\033[0m]\033[32m[P]\033[0m ";
+string Plugin_Console_Warn::tag_ = " \033[33mWarn\033[0m]\033[32m[P]\033[0m ";
 
 Console_Error& Error() {
 	return *Console_Error::cError_;

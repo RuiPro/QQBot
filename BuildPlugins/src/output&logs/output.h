@@ -18,13 +18,14 @@ public:
 	template<typename T>
 	ostream& operator<<(T t) {
 		string output_str = GetSystemTime();
-		output_str.append(" \033[31m[Error]\033[0m\t");
+		output_str.append(tag_);
 		cout << output_str;
 		cout << t;
 		return cout;
 	}
 protected:
 	Console_Error() = default;
+	static string tag_;
 	static Console_Error* cError_;
 };
 
@@ -37,13 +38,14 @@ public:
 	template<typename T>
 	ostream& operator<<(T t) {
 		string output_str = GetSystemTime();
-		output_str.append(" \033[34m[Info]\033[0m\t");
+		output_str.append(tag_);
 		cout << output_str;
 		cout << t;
 		return cout;
 	}
 protected:
 	Console_Info() = default;
+	static string tag_;
 	static Console_Info* cInfo_;
 };
 
@@ -56,13 +58,14 @@ public:
 	template<typename T>
 	ostream& operator<<(T t) {
 		string output_str = GetSystemTime();
-		output_str.append(" \033[33m[Warn]\033[0m\t");
+		output_str.append(tag_);
 		cout << output_str;
 		cout << t;
 		return cout;
 	}
 protected:
 	Console_Warn() = default;
+	static string tag_;
 	static Console_Warn* cWarn_;
 };
 
@@ -75,13 +78,14 @@ public:
 	template<typename T>
 	ostream& operator<<(T t) {
 		string output_str = GetSystemTime();
-		output_str.append(" \033[31m[Error]\033[0m\033[32m[P]\033[0m\t");
+		output_str.append(tag_);
 		cout << output_str;
 		cout << t;
 		return cout;
 	}
 protected:
 	Plugin_Console_Error() = default;
+	static string tag_;
 	static Plugin_Console_Error* pError_;
 };
 
@@ -94,13 +98,14 @@ public:
 	template<typename T>
 	ostream& operator<<(T t) {
 		string output_str = GetSystemTime();
-		output_str.append(" \033[34m[Info]\033[0m \033[32m[P]\033[0m\t");
+		output_str.append(tag_);
 		cout << output_str;
 		cout << t;
 		return cout;
 	}
 protected:
 	Plugin_Console_Info() = default;
+	static string tag_;
 	static Plugin_Console_Info* pInfo_;
 };
 
@@ -113,13 +118,14 @@ public:
 	template<typename T>
 	ostream& operator<<(T t) {
 		string output_str = GetSystemTime();
-		output_str.append(" \033[33m[Warn]\033[0m \033[32m[P]\033[0m\t");
+		output_str.append(tag_);
 		cout << output_str;
 		cout << t;
 		return cout;
 	}
 protected:
 	Plugin_Console_Warn() = default;
+	static string tag_;
 	static Plugin_Console_Warn* pWarn_;
 };
 

@@ -18,13 +18,12 @@ target_link_libraries(QQBot.out OutputAndLogs)
 
 add_library(QQ SHARED  "src/QQ/QQMessage.cpp"  "src/QQ/QQ.cpp")
 target_link_libraries(QQBot.out QQ)
-target_link_libraries(QQ OutputAndLogs)
 
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libcurl/libcurl.a")
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent.a")
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_core.a")
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_extra.a")
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_pthreads.a")
+target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libcurl/libcurl.so")
+target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent.so")
+target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_core.so")
+target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_extra.so")
+target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_pthreads.so")
 target_link_libraries(QQBot.out pthread)
 target_link_libraries(QQBot.out dl)
 

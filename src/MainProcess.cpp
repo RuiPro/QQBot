@@ -44,16 +44,6 @@ MainProcess::MainProcess(int argc, char** argv) {
 	plugins_list_ = new vector<LoadedPlugin*>;
 	// 实例化QQBot对象
 	bot_ = new QQBot(cqhttp_addr_, access_token_);
-	// 加载插件
-	if (LoadDir(app_path_ + "plugins/") != 0) {
-		status_flag_ = STATUS_BAD;
-		return;
-	}
-	if (LoadPlugins() != 0) {
-		status_flag_ = STATUS_BAD;
-		return;
-	}
-	Info() << "Load plugins: " << plugins_list_->size() << std::endl;
 	// 获取Cqhttp和QQBot对象的信息
 	if (bot_->PrintCqhttpVersion() != 0) {
 		status_flag_ = STATUS_BAD;
@@ -65,6 +55,16 @@ MainProcess::MainProcess(int argc, char** argv) {
 	}
 	bot_->PrintFriendList();
 	bot_->PrintGroupList();
+	// 加载插件
+	if (LoadDir(app_path_ + "plugins/") != 0) {
+		status_flag_ = STATUS_BAD;
+		return;
+	}
+	if (LoadPlugins() != 0) {
+		status_flag_ = STATUS_BAD;
+		return;
+	}
+	Info() << "Load plugins: " << plugins_list_->size() << std::endl;
 }
 
 MainProcess::~MainProcess() {
@@ -204,7 +204,7 @@ int MainProcess::AnalysisConfig() {
 			config["thread_pool"].find("adjust_range") == config["thread_pool"].end() ||
 			config["thread_pool"].find("manager_interval") == config["thread_pool"].end()) {
 			Error() << "Required value not found in config.json" << std::endl;
-			std::cout << "\033[31m[Tips]\033[0m\t" << "You may be able to delete config.json and reconfigure it." << std::endl;
+			Error() << "You may be able to delete config.json and reconfigure it." << std::endl;
 			return -1;
 		}
 		TPS_ = config["TPS"];
@@ -285,6 +285,7 @@ int MainProcess::LoadPlugins() {
 				delete load_plugin;
 				continue;
 			}
+			Info() << "Loading plugin " << load_plugin->GetName() << " " << load_plugin->GetVersion() << "...\n";
 			// 加载插件后，为插件创建一个插件专用的目录
 			if (LoadDir(plugins_dir_path + load_plugin->GetName() + "/") != 0) {
 				Warn() << "Faild to create diretory for plugin: " << load_plugin->GetName() << endl;

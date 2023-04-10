@@ -131,21 +131,21 @@ const vector<unsigned int> QQBot::GetQQFriendList() {
 	return ret;
 }
 void QQBot::PrintFriendList() {
-	cout << " ┌───────── \033[34mQQ friends list\033[0m" << endl;
+	Info() << " ┌───────── \033[34mQQ friends list\033[0m" << endl;
 	QQ_lock_.lock();
 	for (auto& qfriend : QQBot_friend_list_) {
-		cout << " ├─ " << qfriend.name_ << "(" << qfriend.id_ << ")" << endl;
+		Info() << " ├─ " << qfriend.name_ << "(" << qfriend.id_ << ")" << endl;
 	}
-	cout << " \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
+	Info() << " \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
 	QQ_lock_.unlock();
 }
 void QQBot::PrintGroupList() {
-	cout << " ┌───────── \033[34mQQ groups list\033[0m" << endl;
+	Info() << " ┌───────── \033[34mQQ groups list\033[0m" << endl;
 	QQ_lock_.lock();
 	for (auto& group : QQBot_group_list_) {
-		cout << " ├─ " << group.name_ << "(" << group.id_ << ")" << endl;
+		Info() << " ├─ " << group.name_ << "(" << group.id_ << ")" << endl;
 	}
-	cout << " \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
+	Info() << " \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
 	QQ_lock_.unlock();
 }
 
