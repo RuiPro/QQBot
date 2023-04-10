@@ -5,12 +5,12 @@ void CorePlugin(const string& msg, QQBot* bot) {
 	if (QQevent["post_type"] != "notice") return;
 	if (QQevent["notice_type"] == "group_decrease" || QQevent["notice_type"] == "group_increase") {
 		Info() << "QQBot group list changed." << std::endl;
-		bot->GetGroupList();
+		bot->GetBotGroupList();
 		bot->PrintGroupList();
 	}
 	if (QQevent["notice_type"] == "friend_add") {
 		Info() << "QQBot friend list changed." << std::endl;
-		bot->GetFriendList();
+		bot->GetBotFriendList();
 		bot->PrintFriendList();
 	}
 }

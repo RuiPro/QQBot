@@ -2,10 +2,18 @@
 #include "QQ.h"
 #include "QQ.h"
 #include "QQ.h"
+#include "QQ.h"
+#include "QQ.h"
 #include <curl.h>
 #include <chrono>
 #include "QQ.h"
 #include "QQ.h"
+
+bool QQGroup::hasQQMember(unsigned int QQid) {
+	auto iter = group_member_list_.find(QQGroupMember(QQid));
+	if (iter == group_member_list_.end())return false;
+	return true;
+}
 
 int QQBot::PrintCqhttpVersion() {
 	if (cqhttp_addr_.empty()) return -1;
@@ -104,6 +112,24 @@ const QQGroup QQBot::GetQQGroup(unsigned int group_id) {
 	if (iter != QQBot_group_list_.end())return (*iter);
 	return QQGroup();
 }
+const vector<unsigned int> QQBot::GetQQGroupList() {
+	vector<unsigned int> ret;
+	QQ_lock_.lock();
+	for (auto& value : QQBot_group_list_) {
+		ret.push_back(value.id_);
+	}
+	QQ_lock_.unlock();
+	return ret;
+}
+const vector<unsigned int> QQBot::GetQQFriendList() {
+	vector<unsigned int> ret;
+	QQ_lock_.lock();
+	for (auto& value : QQBot_friend_list_) {
+		ret.push_back(value.id_);
+	}
+	QQ_lock_.unlock();
+	return ret;
+}
 void QQBot::PrintFriendList() {
 	cout << " ┌───────── \033[34mQQ friends list\033[0m" << endl;
 	QQ_lock_.lock();
@@ -123,7 +149,7 @@ void QQBot::PrintGroupList() {
 	QQ_lock_.unlock();
 }
 
-int QQBot::GetBasicInfo() {
+int QQBot::GetBotBasicInfo() {
 	if (cqhttp_addr_.empty()) return -1;
 	string URL = "http://" + cqhttp_addr_ + "/get_login_info";
 	string data_buffer;
@@ -144,7 +170,7 @@ int QQBot::GetBasicInfo() {
 	return 0;
 }
 
-int QQBot::GetFriendList() {
+int QQBot::GetBotFriendList() {
 	if (cqhttp_addr_.empty()) return -1;
 	string URL = "http://" + cqhttp_addr_ + "/get_friend_list";
 	string data_buffer;
@@ -167,7 +193,7 @@ int QQBot::GetFriendList() {
 	return 0;
 }
 
-int QQBot::GetGroupList() {
+int QQBot::GetBotGroupList() {
 	if (cqhttp_addr_.empty()) return -1;
 	string URL = "http://" + cqhttp_addr_ + "/get_group_list";
 	string data_buffer;
@@ -196,20 +222,20 @@ int QQBot::GetGroupList() {
 	return 0;
 }
 
-int QQBot::GetAllInfo() {
+int QQBot::GetBotAllInfo() {
 	if (cqhttp_addr_.empty()) {
 		Error() << "go-cqhttp address not set!" << std::endl;
 		return -1;
 	}
-	if (GetBasicInfo() != 0) {
+	if (GetBotBasicInfo() != 0) {
 		Error() << "Failed to get QQBot information from go-cqhttp!" << std::endl;
 		return -1;
 	}
-	if (GetFriendList() != 0) {
+	if (GetBotFriendList() != 0) {
 		Error() << "Failed to get QQBot friend list from go-cqhttp!" << std::endl;
 		return -1;
 	}
-	if (GetGroupList() != 0) {
+	if (GetBotGroupList() != 0) {
 		Error() << "Failed to get QQBot group list from go-cqhttp!" << std::endl;
 		return -1;
 	}

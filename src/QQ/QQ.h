@@ -78,6 +78,7 @@ public:
 	inline QQGroup(unsigned int group_id, const string& group_name) : QQObject(group_id, group_name) {}
 	inline QQGroup(unsigned int group_id, const string& group_name, short member_count, short max_member_count) :
 		QQObject(group_id, group_name), member_count_(member_count), max_member_count_(max_member_count) {}
+	bool hasQQMember(unsigned int QQid);
 	short member_count_;
 	short max_member_count_;
 	unordered_set<QQGroupMember, QQObjectHash, QQObjectEqual> group_member_list_;
@@ -104,12 +105,14 @@ public:
 	bool hasQQGroup(unsigned int group_id);							// 判断是否加了某个群
 	const QQFriend GetQQFriend(unsigned int friend_id);				// 获取好友信息
 	const QQGroup GetQQGroup(unsigned int group_id);				// 获取群信息
+	const vector<unsigned int> GetQQGroupList();					// 获取群号列表，返回一个装有群号的容器
+	const vector<unsigned int> GetQQFriendList();					// 获取好友列表，返回一个装有QQ号的容器
 	void PrintFriendList();
 	void PrintGroupList();
-	int GetBasicInfo();												// 获取Bot的QQ号和QQ昵称
-	int GetFriendList();											// 获取Bot的QQ好友列表，使用map存储，哈希根据是QQ号
-	int GetGroupList();												// 获取Bot的QQ群聊列表，使用map存储，哈希根据是群号
-	int GetAllInfo();												// 以上三个API的封装
+	int GetBotBasicInfo();												// 获取Bot的QQ号和QQ昵称
+	int GetBotFriendList();											// 获取Bot的QQ好友列表，使用map存储，哈希根据是QQ号
+	int GetBotGroupList();												// 获取Bot的QQ群聊列表，使用map存储，哈希根据是群号
+	int GetBotAllInfo();												// 以上三个API的封装
 	int GetGroupMemberList(QQGroup& group);							// 获取一个群的成员列表，使用map存储，哈希根据是QQ号
 	string GetAccessToken() const;									// 获取配置的AccessToken
 	int SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg);	// 发送私聊信息

@@ -59,7 +59,7 @@ MainProcess::MainProcess(int argc, char** argv) {
 		status_flag_ = STATUS_BAD;
 		return;
 	}
-	if (bot_->GetAllInfo() != 0) {
+	if (bot_->GetBotAllInfo() != 0) {
 		status_flag_ = STATUS_BAD;
 		return;
 	}

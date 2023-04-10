@@ -1,7 +1,7 @@
 #ifndef QQ_H
 #define QQ_H
 
-#define LIBQQ_VERSION "0.9.2"
+#define LIBQQ_VERSION "0.9.3"
 
 #include <string>
 #include <vector>
@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include "QQMessage.h"
 #include "../json/json.hpp"
+#include "../output&logs/output.h"
 using json = nlohmann::json;
 using namespace std;
 
@@ -21,8 +22,12 @@ public:
 	inline QQObject() {}
 	inline QQObject(unsigned int user_id) : id_(user_id) {}
 	inline QQObject(unsigned int user_id, const string& user_nickname) : id_(user_id), name_(user_nickname) {}
-	unsigned int id_;
+	unsigned int id_ = 0;
 	string name_;
+	bool isNull() {
+		if (id_ == 0) return true;
+		return false;
+	}
 };
 
 // QQ好友
@@ -73,6 +78,7 @@ public:
 	inline QQGroup(unsigned int group_id, const string& group_name) : QQObject(group_id, group_name) {}
 	inline QQGroup(unsigned int group_id, const string& group_name, short member_count, short max_member_count) :
 		QQObject(group_id, group_name), member_count_(member_count), max_member_count_(max_member_count) {}
+	bool hasQQMember(unsigned int QQid);
 	short member_count_;
 	short max_member_count_;
 	unordered_set<QQGroupMember, QQObjectHash, QQObjectEqual> group_member_list_;
@@ -83,7 +89,9 @@ class QQBot {
 public:
 	inline QQBot(const string& cqhttp_addr) : cqhttp_addr_(cqhttp_addr) {};
 	inline QQBot(const string& cqhttp_addr, const string& access_token) : cqhttp_addr_(cqhttp_addr), access_token_(access_token) {};
-	
+	QQBot(const QQBot&) = delete;
+	QQBot(QQBot&&) = delete;
+
 	int PrintCqhttpVersion();										// 打印go-cqhttp的版本
 	int SetAdmin(unsigned int admin_id);							// 设置管理员
 
@@ -93,13 +101,19 @@ public:
 	QQFriend GetAdmin();
 	int GetFriendNum();
 	int GetGroupNum();
+	bool hasQQFriend(unsigned int friend_id);						// 判断是否存在某个好友
+	bool hasQQGroup(unsigned int group_id);							// 判断是否加了某个群
+	const QQFriend GetQQFriend(unsigned int friend_id);				// 获取好友信息
+	const QQGroup GetQQGroup(unsigned int group_id);				// 获取群信息
+	const vector<unsigned int> GetQQGroupList();					// 获取群号列表，返回一个装有群号的容器
+	const vector<unsigned int> GetQQFriendList();					// 获取好友列表，返回一个装有QQ号的容器
 	void PrintFriendList();
 	void PrintGroupList();
-	int GetBasicInfo();												// 获取QQ号和QQ昵称
-	int GetFriendList();											// 获取QQ好友列表，使用map存储，哈希根据是QQ号
-	int GetGroupList();												// 获取QQ群聊列表，使用map存储，哈希根据是群号
-	int GetAllInfo();												// 以上三个API的封装
-	int GetGroupMemberList(QQGroup& group);							// 获取群聊成员列表，使用map存储，哈希根据是QQ号
+	int GetBotBasicInfo();												// 获取Bot的QQ号和QQ昵称
+	int GetBotFriendList();											// 获取Bot的QQ好友列表，使用map存储，哈希根据是QQ号
+	int GetBotGroupList();												// 获取Bot的QQ群聊列表，使用map存储，哈希根据是群号
+	int GetBotAllInfo();												// 以上三个API的封装
+	int GetGroupMemberList(QQGroup& group);							// 获取一个群的成员列表，使用map存储，哈希根据是QQ号
 	string GetAccessToken() const;									// 获取配置的AccessToken
 	int SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg);	// 发送私聊信息
 	int SendGroupMsg(const QQGroup& group, QQMessage& msg);			// 发送群聊信息
