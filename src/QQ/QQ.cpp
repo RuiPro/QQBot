@@ -265,6 +265,38 @@ int QQBot::GetGroupMemberList(QQGroup& group) {
 	return 0;
 }
 
+QQGroup QQBot::GetGroupInfo(unsigned int group_id) {
+	if (cqhttp_addr_.empty()) return -1;
+	string URL = "http://" + cqhttp_addr_ + "/get_group_info";
+	string data_buffer;
+	json post_data;
+	QQGroup ret;
+	post_data["group_id"] = group_id;
+	post_data["no_cache"] = false;
+	if (SendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+	json json_data = json::parse(data_buffer, NULL, false);
+	if (json_data["status"] == "ok") {
+		ret = QQGroup(json_data["data"]["group_id"], json_data["data"]["group_name"], json_data["data"]["member_count"], json_data["data"]["max_member_count"]);
+	}
+	else if (json_data["status"] == "failed") {
+		Warn() << "Failed to use go-cqhttp's API: " << URL << std::endl << "    --->"
+			<< json_data["msg"] << ":" << json_data["wording"] << std::endl;
+		return QQGroup();
+	}
+	return ret;
+}
+
+int QQBot::UpdateGroupInfo(unsigned int group_id) {
+	if (!hasQQGroup(group_id)) return -1;
+	QQGroup new_group = std::move(GetGroupInfo(group_id));
+	if (GetGroupMemberList(new_group) != 0) return -1;
+	QQ_lock_.lock();
+	QQBot_group_list_.erase(QQGroup(group_id));
+	QQBot_group_list_.insert(new_group);
+	QQ_lock_.unlock();
+	return 0;
+}
+
 string QQBot::GetAccessToken() const {
 	return access_token_;
 }

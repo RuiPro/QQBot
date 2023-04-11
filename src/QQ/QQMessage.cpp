@@ -97,26 +97,26 @@ void QQMessage::AddImageFileForPrivate(const string& path, const int& type) {
 	CQ.append(",cache=1]");
 	message_.append(CQ);
 }
-void QQMessage::AddImageURLForGroup(const string& URL, const int subType = 0) {
+void QQMessage::AddImageURLForGroup(const string& URL, const int subType) {
 	if (lock_single_CQcode) return;
 	if (must_to_private_) return;
 	must_to_group_ = true;
 	is_CQ_ = true;
 	string CQ = "[CQ:image,file=";
 	CQ.append(URL);
-	CQ.append(",type=show,subType=");
+	CQ.append(",subType=");
 	CQ.append(to_string(subType));
 	CQ.append(",cache=1]");
 	message_.append(CQ);
 }
-void QQMessage::AddImageFileForGroup(const string& path, const int subType = 0) {
+void QQMessage::AddImageFileForGroup(const string& path, const int subType) {
 	if (lock_single_CQcode) return;
 	if (must_to_private_) return;
 	must_to_group_ = true;
 	is_CQ_ = true;
 	string CQ = "[CQ:image,file=file://";
 	CQ.append(path);
-	CQ.append(",type=show,subType=");
+	CQ.append(",subType=");
 	CQ.append(to_string(subType));
 	CQ.append(",cache=1]");
 	message_.append(CQ);

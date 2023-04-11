@@ -28,10 +28,10 @@ public:
 	void AddEmoji(const int emoji_id);
 	void AddShareLink(const string& URL, const string& title, const string& content, const string& image_URL);
 	// 添加图片链接，使用URL需要连带传入协议(比如前面的http://)，添加图片文件则直接传入路径
-	void AddImageURLForPrivate(const string& URL, const int& type);		// type: 0普通图片，1闪照
-	void AddImageFileForPrivate(const string& path, const int& type);
-	void AddImageURLForGroup(const string& URL, const int subType);		// subType: 0正常图片 1表情包 2斗图...详见https://docs.go-cqhttp.org/cqcode/#%E5%9B%BE%E7%89%87
-	void AddImageFileForGroup(const string& path, const int subType);
+	void AddImageURLForPrivate(const string& URL, const int& type = 0);		// type: 0普通图片，1闪照
+	void AddImageFileForPrivate(const string& path, const int& type = 0);
+	void AddImageURLForGroup(const string& URL, const int subType = 0);		// subType: 0正常图片 1表情包 2斗图...详见https://docs.go-cqhttp.org/cqcode/#%E5%9B%BE%E7%89%87
+	void AddImageFileForGroup(const string& path, const int subType = 0);
 	void AddReply(const int message_id);
 	void MakePoke(const QQFriend& qfriend);
 	void MakePoke(const QQGroup& group, const QQGroupMember& member);

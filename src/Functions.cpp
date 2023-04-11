@@ -3,15 +3,34 @@
 void CorePlugin(const string& msg, QQBot* bot) {
 	json QQevent = json::parse(msg, NULL, false);
 	if (QQevent["post_type"] != "notice") return;
+	// 群变动时更新群列表，包括群内人数改变（包括Bot加群）
 	if (QQevent["notice_type"] == "group_decrease" || QQevent["notice_type"] == "group_increase") {
 		Info() << "QQBot group list changed." << std::endl;
 		bot->GetBotGroupList();
 		bot->PrintGroupList();
 	}
+	// 好友变动时更新好友列表
 	if (QQevent["notice_type"] == "friend_add") {
 		Info() << "QQBot friend list changed." << std::endl;
 		bot->GetBotFriendList();
 		bot->PrintFriendList();
+	}
+	// 群内名片、头衔改变
+	if (QQevent["notice_type"] == "group_card") {
+		if (bot->UpdateGroupInfo(QQevent["group_id"]) == 0) {
+			Info() << "QQBot group " << QQevent["group_id"] << " information updated." << std::endl;
+		}
+		else {
+			Warn() << "QQBot group " << QQevent["group_id"] << " information update failed!" << std::endl;
+		}
+	}
+	if (QQevent["notice_type"] == "notify" && QQevent["sub_type"] == "title") {
+		if (bot->UpdateGroupInfo(QQevent["group_id"]) == 0) {
+			Info() << "QQBot group " << QQevent["group_id"] << " information updated." << std::endl;
+		}
+		else {
+			Warn() << "QQBot group " << QQevent["group_id"] << " information update failed!" << std::endl;
+		}
 	}
 }
 
@@ -52,7 +71,10 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 			json data = json::parse(recv_data);
 			do {
 				if (data["self_id"] != arg->bot_->GetQQbotID()) {
-					std::cout << "\033[33m[Warn] \033[0m" << "Received messages from other QQ bots, ignored." << std::endl;
+					Warn() << "Received messages from other QQ bots, ignored." << std::endl;
+					break;
+				}
+				if (data["self_id"] == "meta_event" && data["meta_event_type"] == "heartbeat") {
 					break;
 				}
 				arg->MsgQueueAdd(string(recv_data));
