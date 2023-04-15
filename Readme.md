@@ -10,5 +10,5 @@
 - [libevent](https://github.com/libevent/libevent)
 - [json](https://github.com/nlohmann/json/#projects-using-json-for-modern-c)
 
-目前只封装了go-cqhttp的有限的API
+目前只封装了go-cqhttp的一些常用的API
 

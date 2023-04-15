@@ -3,33 +3,46 @@
 void CorePlugin(const string& msg, QQBot* bot) {
 	json QQevent = json::parse(msg, NULL, false);
 	if (QQevent["post_type"] != "notice") return;
-	// 群变动时更新群列表，包括群内人数改变（包括Bot加群）
+	// 群变动时更新群列表，包括群内人数改变（包括Bot加群退群）
 	if (QQevent["notice_type"] == "group_decrease" || QQevent["notice_type"] == "group_increase") {
-		Info() << "QQBot group list changed." << std::endl;
-		bot->GetBotGroupList();
-		bot->PrintGroupList();
+		if (QQevent["user_id"] == bot->GetBotID()) {	// 如果是Bot加群退群，更新bot群列表
+			Qlog.Info() << "QQBot group list changed." << std::endl;
+			bot->SetBotGroupList();
+			bot->PrintGroupList();
+		}
+		else {
+			if (bot->ResetBotGroup(QQevent["group_id"]) == 1) {	// 如果是其他群，更新对应群即可
+				Qlog.Info() << "QQBot group " << QQevent["group_id"] << " updated." << std::endl;
+			}
+		}
+	}
+	// 群成员信息变动
+	if (QQevent["notice_type"] == "group_admin") {
+		if (bot->ResetBotGroup(QQevent["group_id"]) == 1) {
+			Qlog.Info() << "QQBot group " << QQevent["group_id"] << " updated." << std::endl;
+		}
 	}
 	// 好友变动时更新好友列表
 	if (QQevent["notice_type"] == "friend_add") {
-		Info() << "QQBot friend list changed." << std::endl;
-		bot->GetBotFriendList();
+		Qlog.Info() << "QQBot friend list changed." << std::endl;
+		bot->SetBotFriendList();
 		bot->PrintFriendList();
 	}
 	// 群内名片、头衔改变
 	if (QQevent["notice_type"] == "group_card") {
-		if (bot->UpdateGroupInfo(QQevent["group_id"]) == 0) {
-			Info() << "QQBot group " << QQevent["group_id"] << " information updated." << std::endl;
+		if (bot->SetGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
+			Qlog.Info() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information updated." << std::endl;
 		}
 		else {
-			Warn() << "QQBot group " << QQevent["group_id"] << " information update failed!" << std::endl;
+			Qlog.Warn() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information update failed!" << std::endl;
 		}
 	}
 	if (QQevent["notice_type"] == "notify" && QQevent["sub_type"] == "title") {
-		if (bot->UpdateGroupInfo(QQevent["group_id"]) == 0) {
-			Info() << "QQBot group " << QQevent["group_id"] << " information updated." << std::endl;
+		if (bot->SetGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
+			Qlog.Info() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information updated." << std::endl;
 		}
 		else {
-			Warn() << "QQBot group " << QQevent["group_id"] << " information update failed!" << std::endl;
+			Qlog.Warn() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information update failed!" << std::endl;
 		}
 	}
 }
@@ -53,7 +66,7 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 		while (recv_size > counter) {
 			ssize_t once_size = evbuffer_remove(recv_buffer, recv_data, recv_size);
 			if (once_size == -1) {
-				Error() << "Failed to get data from input buffer!" << std::endl;
+				Qlog.Error() << "Failed to get data from input buffer!" << std::endl;
 				return;
 			}
 			else {
@@ -70,8 +83,8 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 			// 处理数据入口
 			json data = json::parse(recv_data);
 			do {
-				if (data["self_id"] != arg->bot_->GetQQbotID()) {
-					Warn() << "Received messages from other QQ bots, ignored." << std::endl;
+				if (data["self_id"] != arg->bot_->GetBotID()) {
+					Qlog.Warn() << "Received messages from other QQ bots, ignored." << std::endl;
 					break;
 				}
 				if (data["self_id"] == "meta_event" && data["meta_event_type"] == "heartbeat") {
@@ -81,13 +94,13 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 			} while (false);
 		}
 		else {
-			Warn() << "The size of data received doesn't match client report." << std::endl;
+			Qlog.Warn() << "The size of data received doesn't match client report." << std::endl;
 		}
 		delete[] recv_data;
 		std::chrono::duration<double> runTime = std::chrono::system_clock::now() - startTime;
 		auto runTimeCount = runTime.count();
 		if (runTimeCount > 4.75) {
-			Warn() << "HTTPRequestCB run time: " << fixed << setprecision(2) << runTimeCount << " is longer than 5s." << std::endl;
+			Qlog.Warn() << "HTTPRequestCB run time: " << fixed << setprecision(2) << runTimeCount << " is longer than 5s." << std::endl;
 		}
 	}
 }

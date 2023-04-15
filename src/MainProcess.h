@@ -18,7 +18,7 @@
 #include "json/json.hpp"
 #include "QQ/QQ.h"
 #include "LoadPlugin.h"
-#include "output&logs/output.h"
+#include "QQBotLog/QQBotLog.h"
 
 using namespace std;
 using json = nlohmann::json;

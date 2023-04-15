@@ -49,7 +49,7 @@ MainProcess::MainProcess(int argc, char** argv) {
 		status_flag_ = STATUS_BAD;
 		return;
 	}
-	if (bot_->GetBotAllInfo() != 0) {
+	if (bot_->SetBotAllInfo() != 0) {
 		status_flag_ = STATUS_BAD;
 		return;
 	}
@@ -64,7 +64,7 @@ MainProcess::MainProcess(int argc, char** argv) {
 		status_flag_ = STATUS_BAD;
 		return;
 	}
-	Info() << "Load plugins: " << plugins_list_->size() << std::endl;
+	Qlog.Info() << "Load plugins: " << plugins_list_->size() << std::endl;
 }
 
 MainProcess::~MainProcess() {
@@ -115,7 +115,7 @@ string MainProcess::GetPath() {
 	if (argv0[0] == '.' && argv0[1] == '/') {       // 如果程序位置在当前路径下的子路径
 		char path[1024]{ 0 };
 		if (getcwd(path, 1024) == nullptr) {        // 程序路径 = 当前工作路径 拼接 程序执行路径
-			Error() << "Failed to get app path!" << std::endl;
+			Qlog.Error() << "Failed to get app path!" << std::endl;
 			return env_path;
 		}
 		env_path = path;
@@ -125,7 +125,7 @@ string MainProcess::GetPath() {
 		char path1[1024]{ 0 };
 		char path2[1024]{ 0 };
 		if (getcwd(path1, 1023) == nullptr) {       // 程序路径 = 求绝对路径(当前工作路径 拼接 程序执行路径)
-			Error() << "Failed to get app path!" << std::endl;
+			Qlog.Error() << "Failed to get app path!" << std::endl;
 			return env_path;
 		}
 		env_path = path1;
@@ -149,11 +149,11 @@ int MainProcess::ConfigFileInit() {
 	ifstream f;
 	f.open(config_path);
 	if (!f.is_open()) {
-		Info() << "File config.json does not exist, creating..." << std::endl;
+		Qlog.Info() << "File config.json does not exist, creating..." << std::endl;
 		ofstream new_file;
 		new_file.open(config_path, std::ios::out | std::ios::app);
 		if (!new_file.is_open()) {
-			Error() << "File config.json filed to create!" << std::endl;
+			Qlog.Error() << "File config.json filed to create!" << std::endl;
 			std::cout << "\033[31m" << "Program exiting..." << "\033[0m" << std::endl;
 			return -1;
 		}
@@ -172,7 +172,7 @@ int MainProcess::ConfigFileInit() {
 }
 		)";
 		new_file.close();
-		Info() << "File config.json created successfully." << std::endl;
+		Qlog.Info() << "File config.json created successfully." << std::endl;
 	}
 	f.close();
 	return 0;
@@ -182,7 +182,7 @@ int MainProcess::AnalysisConfig() {
 	string config_path = app_path_ + "config.json";
 	ifstream config_file(config_path);
 	if (!config_file.is_open()) {
-		Error() << "Failed to open file config.json." << std::endl;
+		Qlog.Error() << "Failed to open file config.json." << std::endl;
 		std::cout << "\033[31m" << "Program exiting..." << "\033[0m" << std::endl;
 		return -1;
 	}
@@ -190,7 +190,7 @@ int MainProcess::AnalysisConfig() {
 		json config;
 		config_file >> config;
 		if (!config.is_object()) {
-			Error() << "Cann't get json from config.json." << std::endl;
+			Qlog.Error() << "Cann't get json from config.json." << std::endl;
 			std::cout << "\033[31m" << "Program exiting..." << "\033[0m" << std::endl;
 			return -1;
 		}
@@ -203,8 +203,8 @@ int MainProcess::AnalysisConfig() {
 			config["thread_pool"].find("max_task_num") == config["thread_pool"].end() ||
 			config["thread_pool"].find("adjust_range") == config["thread_pool"].end() ||
 			config["thread_pool"].find("manager_interval") == config["thread_pool"].end()) {
-			Error() << "Required value not found in config.json" << std::endl;
-			Error() << "You may be able to delete config.json and reconfigure it." << std::endl;
+			Qlog.Error() << "Required value not found in config.json" << std::endl;
+			Qlog.Error() << "You may be able to delete config.json and reconfigure it." << std::endl;
 			return -1;
 		}
 		TPS_ = config["TPS"];
@@ -217,7 +217,7 @@ int MainProcess::AnalysisConfig() {
 		thread_pool_manager_interval_ = config["thread_pool"]["manager_interval"];
 		if (TPS_ <= 0 || cqhttp_IP.empty() || cqhttp_port == 0 || bind_port_ == 0 || thread_pool_max_thread_num_ < 0 ||
 			thread_pool_max_task_num_ <= 0 || thread_pool_adjust_range_ <= 0 || thread_pool_manager_interval_ < 0) {
-			Error() << "Invalid config value found! Please check the config.json." << std::endl;
+			Qlog.Error() << "Invalid config value found! Please check the config.json." << std::endl;
 			std::cout << "\033[31m" << "Program exiting..." << "\033[0m" << std::endl;
 			return -1;
 		}
@@ -239,7 +239,7 @@ int MainProcess::AnalysisConfig() {
 		return 0;
 	}
 	catch (const std::exception& e) {
-		Error() << "Failed to analysis config json:" << e.what() << std::endl;
+		Qlog.Error() << "Failed to analysis config json:" << e.what() << std::endl;
 		return -1;
 	}
 }
@@ -270,7 +270,7 @@ int MainProcess::LoadPlugins() {
 	string plugins_dir_path = app_path_ + "plugins/";
 	DIR* dir = opendir(plugins_dir_path.c_str());
 	if (dir == nullptr) {
-		Error() << "Faild to open diretory: " << plugins_dir_path << std::endl;
+		Qlog.Error() << "Faild to open diretory: " << plugins_dir_path << std::endl;
 		return -1;
 	}
 	dirent* file;
@@ -281,14 +281,14 @@ int MainProcess::LoadPlugins() {
 			if (file_name.length() <= 4 || file_name.substr(file_name.length() - suffix.length()) != suffix) continue;
 			LoadedPlugin* load_plugin = new LoadedPlugin(plugins_dir_path + file_name, bot_, app_path_);
 			if (!load_plugin->isGood()) {
-				Warn() << "Plugin " << file_name << " faild to load: bad plugin." << endl;
+				Qlog.Warn() << "Plugin " << file_name << " faild to load: bad plugin." << endl;
 				delete load_plugin;
 				continue;
 			}
-			Info() << "Loading plugin " << load_plugin->GetName() << " " << load_plugin->GetVersion() << "...\n";
+			Qlog.Info() << "Loading plugin " << load_plugin->GetName() << " " << load_plugin->GetVersion() << "...\n";
 			// 加载插件后，为插件创建一个插件专用的目录
 			if (LoadDir(plugins_dir_path + load_plugin->GetName() + "/") != 0) {
-				Warn() << "Faild to create diretory for plugin: " << load_plugin->GetName() << endl;
+				Qlog.Warn() << "Faild to create diretory for plugin: " << load_plugin->GetName() << endl;
 				delete load_plugin;
 				continue;
 			}
@@ -307,23 +307,23 @@ int MainProcess::LoadDir(const string& dir_path) {
 	if (stat(dir_path.c_str(), &plugins_dir_info) != 0) {
 		if (errno == ENOENT) {
 			if (mkdir(dir_path.c_str(), 0755) != 0) {
-				Error() << "Failed to create diretory: " << dir_path << std::endl;
+				Qlog.Error() << "Failed to create diretory: " << dir_path << std::endl;
 				return -1;
 			}
 			return 0;
 		}
 		else {
-			Error() << "Failed to check plugins diretory. Error code: " << errno << std::endl;
+			Qlog.Error() << "Failed to check plugins diretory. Error code: " << errno << std::endl;
 			return -1;
 		}
 	}
 	// 如果存在，判断是否可读
 	if ((plugins_dir_info.st_mode & S_IFDIR) == 0) {
-		Error() << dir_path << " is not a diretory." << std::endl;
+		Qlog.Error() << dir_path << " is not a diretory." << std::endl;
 		return -1;
 	}
 	if (access(dir_path.c_str(), F_OK | R_OK | X_OK) != 0) {
-		Error() << "Unable to access " << dir_path << ", folder does not exist or permission deny." << std::endl;
+		Qlog.Error() << "Unable to access " << dir_path << ", folder does not exist or permission deny." << std::endl;
 		return -1;
 	}
 	return 0;

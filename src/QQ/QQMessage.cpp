@@ -1,6 +1,4 @@
 #include "QQMessage.h"
-#include "QQMessage.h"
-#include "QQMessage.h"
 
 void QQMessage::SetMsgID(int msg_id) {
 	message_id_ = msg_id;
@@ -142,7 +140,7 @@ void QQMessage::MakePoke(const QQFriend& qfriend) {
 void QQMessage::MakePoke(const QQGroup& group, const QQGroupMember& member) {
 	if (lock_single_CQcode) return;
 	if (must_to_private_) return;
-	if (group.group_member_list_.find(member) == group.group_member_list_.end()) return;
+	if (!group.GetGroupHasMember(member.id_)) return;
 	must_to_group_ = true;
 	message_.clear();
 	lock_single_CQcode = true;
