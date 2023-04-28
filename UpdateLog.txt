@@ -13,4 +13,5 @@
   设置登录号资料/set_qq_profile
   获取陌生人信息/get_stranger_info
   获取群员详细信息/get_group_member_info
-5.一些没有实际用途的API就不再封装了，比如设置在线机型
+5.把存储QQ列表的容器从unordered_set改成了vector。一个QQ最多500个好友或群，每个群打死最多3000个群员，用vector足够了。
+6.一些没有实际用途的API就不再封装了，比如设置在线机型
