@@ -20,7 +20,6 @@
 #include "LoadPlugin.h"
 #include "QQBotLog/QQBotLog.h"
 
-using namespace std;
 using json = nlohmann::json;
 
 #define VERSION "0.9.2"
@@ -30,6 +29,8 @@ using json = nlohmann::json;
 class MainProcess {
 public:
 	MainProcess(int argc, char** argv);
+	MainProcess(const MainProcess&) = delete;
+	MainProcess(MainProcess&&) = delete;
 	~MainProcess();
 	void Exec();								// 执行事件循环
 	string GetPath();							// 找到程序所在的路径
@@ -40,7 +41,7 @@ public:
 	int LoadPlugins();							// 加载插件
 	static int LoadDir(const string& dir_path);	// 检查文件夹
 
-	// 这些是可供外部访问的变量，我没有对其进行封装，这方便你进行读取。但这不意味着你可以随意修改。当你在修改时最好知道你在做什么
+	// 这些是可供外部访问的变量，我没有对其进行封装，这方便你进行读取。但这不意味着可以随意修改。当你在修改时最好知道你在做什么
 	vector<char*> argv_;					// 程序参数列表
 	string app_path_;						// 程序的绝对地址
 	unsigned short bind_port_;				// 程序绑定的HTTP端口

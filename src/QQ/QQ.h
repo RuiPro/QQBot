@@ -4,14 +4,17 @@
 #define LIBQQ_VERSION "0.9.3"
 
 #include <string>
+using std::string;
 #include <vector>
-#include <iostream>
+using std::vector;
+#include <utility>
+using std::pair;
 #include <mutex>
+using std::mutex;
 #include "QQMessage.h"
 #include "../json/json.hpp"
 #include "../QQBotLog/QQBotLog.h"
 using json = nlohmann::json;
-using namespace std;
 
 class QQMessage;
 class QQRawMessage;
@@ -114,9 +117,13 @@ public:
 	const vector<unsigned int> GetBotGroupIDList();					// 获取群号列表，返回一个装有群号的容器
 	const vector<unsigned int> GetBotFriendIDList();				// 获取好友列表，返回一个装有QQ号的容器
 	string GetBotAccessToken() const;								// 获取配置的AccessToken
+	void PrintFriendList();											// 输出好友列表
+	void PrintGroupList();											// 输出群列表
 
-	// 这些函数用以设置Bot的信息，有些是手动设置，有些是从go-cqhttp获取
+	// 这些函数用以设置Bot的信息
+	// 需手动提供信息
 	int SetBotAdmin(unsigned int admin_id);							// 设置管理员【功能待完善】
+	// 从go-cqhttp获取信息
 	int SetBotBasicInfo();											// 从go-cqhttp获取Bot的QQ号和QQ昵称。使用互斥锁同步。
 	int SetBotFriendList();											// 从go-cqhttp获取Bot的QQ好友列表。使用互斥锁同步。
 	int SetBotGroupList();											// 从go-cqhttp获取Bot的QQ群聊列表。使用互斥锁同步。
@@ -130,25 +137,30 @@ public:
 	// 从go-cqhttp更新Bot的某个群，Bot必须在群内。内部就是上面三个函数的封装。使用互斥锁同步。
 	int ResetBotGroup(unsigned int group_id);
 
-	// 这些函数为功能性函数
+	// 这些函数用以向go-cqhttp请求实现Bot的某些主动动作或获得一些信息
 	int SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg);	// 发送私聊信息
 	int SendGroupMsg(const QQGroup& group, QQMessage& msg);			// 发送群聊信息
-	void PrintFriendList();											// 输出好友列表
-	void PrintGroupList();											// 输出群列表
 	int DeleteFriend(const QQFriend& qfriend);						// 删除好友
 	int DeleteGroup(const QQGroup& group);							// 退出群聊
 	int WithdrawMsg(int message_id);								// 撤回一条消息
-	bool CanSendImage();											// 判断QQ号是否可以发送图片？
-	bool CanSendRecord();											// 判断QQ号是否可以发送录音？
+	bool CanSendImage();											// 判断QQ号是否可以发送图片？暂不知这个API的存在作用
+	bool CanSendRecord();											// 判断QQ号是否可以发送录音？暂不知这个API的存在作用
 	int PrintCqhttpVersion();										// 打印go-cqhttp的版本
-	// 设置Bot的信息，比如昵称
+	// 设置Bot的信息，包括昵称、公司、邮箱、学校、个人说明
 	int SetQQRrofile(const string& nickname, const string& company, const string& email, const string& college, const string& personal_note);
-	QQUser GetQQUserInfo(unsigned int QQid);						// 获取QQ用户信息
-	QQRawMessage GetMessageInfo(int message_id);					// 获取消息详情
+	QQUser GetQQUserInfo(unsigned int QQid);						// 获取一个QQ用户的信息
+	QQRawMessage GetMessageInfo(int message_id);					// 获取消息的详情信息
 	// 处理加好友请求，flag要从上报中获取
 	int SetAddFriendRequest(const string& flag, const bool approve, const string& remark);
 	// 处理加群请求，flag和sub_type要从上报中获取
 	int SetAddGroupRequest(const string& flag, const string& sub_type, const bool approve, const string& reason);
+	// 提供一个设备名，查看可以设置哪些在线机型名称及是否需要会员。比如提供小米MixAlpha，返回的列表里可能为小米MixAlpha(黑色)/true、小米MixAlpha(白色)/false...
+	vector<pair<string,bool>> GetDeviceShowList(string device_name);
+	// 设置在线机型名称，需要从上面的GetDeviceShowList中选择一个元素传入device_name_element，非会员就选带false的元素，比如小米MixAlpha(白色)
+	int SetDeviceShowName(string device_name, string device_name_element);
+	// 获取Bot当前在线设备列表
+	int GetOnlineClients();
+	
 
 	static string GetQQHeaderImageURL(unsigned int QQid);			// 使用QQ号获取QQ头像链接
 private:

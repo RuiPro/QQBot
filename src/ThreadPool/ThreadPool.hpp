@@ -19,6 +19,7 @@ public:
     ThreadPool(int min_thread_num, int max_thread_num, int max_task_num,
         int wave_range, int manager_check_interval);               // 构造
     ThreadPool(const ThreadPool&) = delete;
+    ThreadPool(ThreadPool&&) = delete;
     ~ThreadPool();                                                            // 析构
     template<class F, class... Args>
     int AddTask(F func, Args... args);                                        // 【模板】添加任务

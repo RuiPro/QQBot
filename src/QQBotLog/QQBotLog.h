@@ -2,10 +2,10 @@
 #define QQBOTLOG_H
 
 #include <iostream>
-#include <mutex>
-#include <string>
-#include <ctime>
 using std::cout;
+#include <string>
+using std::string;
+#include <ctime>
 
 class QQBot;
 #include "../BasicPlugin.h"

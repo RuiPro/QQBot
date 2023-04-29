@@ -26,6 +26,10 @@ MainProcess::MainProcess(int argc, char** argv) {
 		<< "\033[0m" << endl;
 	// 获取程序路径
 	app_path_ = GetPath();
+	if (app_path_.empty()) {
+		status_flag_ = STATUS_BAD;
+		return;
+	}
 	// 检查配置文件是否存在
 	if (ConfigFileInit() != 0) {
 		status_flag_ = STATUS_BAD;

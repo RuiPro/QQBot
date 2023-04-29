@@ -1,9 +1,4 @@
 #include "QQ.h"
-#include "QQ.h"
-#include "QQ.h"
-#include "QQ.h"
-#include "QQ.h"
-#include "QQ.h"
 #include <curl.h>
 #include <chrono>
 #include "QQ.h"
@@ -28,6 +23,7 @@ bool QQGroup::GetGroupHasMember(unsigned int QQid) const  {
 QQFriend QQBot::NULLFriend = QQFriend(0);
 QQGroup QQBot::NULLGroup = QQGroup(0);
 
+// 这些函数用以获取Bot中已设置的信息
 unsigned int QQBot::GetBotID() {
 	QQ_lock_.lock();
 	unsigned int ret = QQBot_id_;
@@ -114,7 +110,26 @@ const vector<unsigned int> QQBot::GetBotFriendIDList() {
 string QQBot::GetBotAccessToken() const {
 	return access_token_;
 }
+void QQBot::PrintFriendList() {
+	Qlog.Info() << " ┌───────── \033[34mQQ friends list\033[0m" << endl;
+	QQ_lock_.lock();
+	for (auto& qfriend : QQBot_friend_list_) {
+		Qlog.Info() << " ├─ " << qfriend.name_ << "(" << qfriend.id_ << ")" << endl;
+	}
+	Qlog.Info() << " \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
+	QQ_lock_.unlock();
+}
+void QQBot::PrintGroupList() {
+	Qlog.Info() << " ┌───────── \033[34mQQ groups list\033[0m" << endl;
+	QQ_lock_.lock();
+	for (auto& group : QQBot_group_list_) {
+		Qlog.Info() << " ├─ " << group.name_ << "(" << group.id_ << ")" << endl;
+	}
+	Qlog.Info() << " \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
+	QQ_lock_.unlock();
+}
 
+// 这些函数用以设置Bot的信息
 int QQBot::SetBotAdmin(unsigned int admin_id) {
 	QQ_lock_.lock();
 	if (FindQQFriend(admin_id) != QQBot_friend_list_.end()) {
@@ -354,6 +369,7 @@ int QQBot::ResetBotGroup(unsigned int group_id) {
 	return 0;
 }
 
+// 这些函数用以向go-cqhttp请求实现Bot的某些主动动作或获得一些信息
 int QQBot::SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg) {
 	if (cqhttp_addr_.empty()) return -1;
 	if (!msg.CanSendToPrivate()) return -1;
@@ -398,24 +414,6 @@ int QQBot::SendGroupMsg(const QQGroup& group, QQMessage& msg) {
 		return -1;
 	}
 	return 0;
-}
-void QQBot::PrintFriendList() {
-	Qlog.Info() << " ┌───────── \033[34mQQ friends list\033[0m" << endl;
-	QQ_lock_.lock();
-	for (auto& qfriend : QQBot_friend_list_) {
-		Qlog.Info() << " ├─ " << qfriend.name_ << "(" << qfriend.id_ << ")" << endl;
-	}
-	Qlog.Info() << " \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
-	QQ_lock_.unlock();
-}
-void QQBot::PrintGroupList() {
-	Qlog.Info() << " ┌───────── \033[34mQQ groups list\033[0m" << endl;
-	QQ_lock_.lock();
-	for (auto& group : QQBot_group_list_) {
-		Qlog.Info() << " ├─ " << group.name_ << "(" << group.id_ << ")" << endl;
-	}
-	Qlog.Info() << " \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
-	QQ_lock_.unlock();
 }
 int QQBot::DeleteFriend(const QQFriend& qfriend) {
 	if (cqhttp_addr_.empty()) return -1;
@@ -614,12 +612,16 @@ int QQBot::SetAddGroupRequest(const string& flag, const string& sub_type, const 
 	json json_data = json::parse(data_buffer, NULL, false);
 	return 0;
 }
+
+
+// 静态成员函数
 string QQBot::GetQQHeaderImageURL(unsigned int QQid) {
 	// https://qlogo3.store.qq.com/qzone/(%QQID%)/(%QQID%)/640.jfif		//OK
 	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(%QQID%)&spec=640		//OK
 	return "https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=" + to_string(QQid) + "&spec=640";
 }
 
+// 私有成员函数
 size_t curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
 	((std::string*)userdata)->append(ptr, size * nmemb);
 	return size * nmemb;

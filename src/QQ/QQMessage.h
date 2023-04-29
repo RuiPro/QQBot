@@ -3,7 +3,6 @@
 
 #include <string>
 #include "QQ.h"
-using namespace std;
 
 class QQObject;
 class QQFriend;
