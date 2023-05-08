@@ -1,9 +1,7 @@
 #ifndef BASEPLUGIN_H
 #define BASEPLUGIN_H
 
-#include <string>
-#include "QQ/QQ.h"
-using namespace std;
+class QQBot;
 
 // 插件抽象基类
 class BasicPlugin {

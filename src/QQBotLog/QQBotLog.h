@@ -2,13 +2,11 @@
 #define QQBOTLOG_H
 
 #include <iostream>
-using std::cout;
 #include <string>
-using std::string;
 #include <ctime>
+using namespace std;
 
-class QQBot;
-#include "../BasicPlugin.h"
+class BasicPlugin;
 
 string GetSystemTime();
 

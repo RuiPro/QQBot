@@ -1,8 +1,9 @@
 #include "QQBotLog.h"
+#include "../BasicPlugin.h"
 
 string GetSystemTime() {
-	std::time_t now = std::time(nullptr);
-	std::tm* local_time = std::localtime(&now);
+	time_t now = time(nullptr);
+	tm* local_time = localtime(&now);
 	string now_time = "[";
 	now_time.append(to_string(local_time->tm_year + 1900));
 	now_time.append("-");
@@ -85,6 +86,6 @@ const QQBotLog& QQBotLog::GetLogObject() {
 	return *log_;
 }
 
-string QQBotLog::error_tag_ = " \033[31mError\033[0m] ";
+string QQBotLog::error_tag_ = " \033[31mError\033[0m]";
 string QQBotLog::warn_tag_ = " \033[33mWarn\033[0m] ";
 string QQBotLog::info_tag_ = " \033[34mInfo\033[0m] ";

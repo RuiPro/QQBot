@@ -19,7 +19,7 @@
 #include "QQ/QQ.h"
 #include "LoadPlugin.h"
 #include "QQBotLog/QQBotLog.h"
-
+using namespace std;
 using json = nlohmann::json;
 
 #define VERSION "0.9.2"
@@ -50,6 +50,8 @@ public:
 	ThreadPool* thread_pool_ = nullptr;		// 线程池
 	QQBot* bot_ = nullptr;					// QQ机器人对象
 	vector<LoadedPlugin*>* plugins_list_ = nullptr;			// 加载的插件列表
+	bool auto_add_friend_;
+	bool auto_join_group_;
 
 private:
 	int thread_pool_max_thread_num_;		// 线程池最大线程数
@@ -57,6 +59,7 @@ private:
 	int thread_pool_adjust_range_;			// 线程池每次增加线程/销毁闲线程的数量，单位个，配置默认是5
 	int thread_pool_manager_interval_;		// 线程池管理者线程监视的间隔，单位毫秒，配置默认是2000
 	bool status_flag_ = STATUS_OK;			// 状态码，默认为STATUS_OK。在初始化失败时会改成STATUS_BAD，禁止事件循环
+	bool use_cache;							// 是否使用go-cqhttp的缓存
 	int TPS_;								// tick per second，每秒进行多少次事件循环，配置默认是20
 	event_base* ev_thread_base_ = nullptr;
 	event_base* ev_main_base_ = nullptr;

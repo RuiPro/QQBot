@@ -16,20 +16,20 @@ public:
 	LoadedPlugin(const string& plugin_path, QQBot* bot, const string& app_path) {
 		handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
 		if (handle == nullptr) {
-			Qlog.Error() << "Open plugin failed: " << dlerror() << std::endl;
+			Qlog.Error() << "Open plugin failed: " << dlerror() << endl;
 			plugin_status_ = Bad_Plugin;
 			return;
 		}
 		*(void**)(&loadPlugin) = dlsym(handle, "loadPlugin");
 		if (loadPlugin == nullptr) {
-			Qlog.Error() << "Get load plugin function failed: " << dlerror() << std::endl;
+			Qlog.Error() << "Get load plugin function failed: " << dlerror() << endl;
 			dlclose(handle);
 			plugin_status_ = Bad_Plugin;
 			return;
 		}
 		*(void**)(&destroyPlugin) = dlsym(handle, "destroyPlugin");
 		if (destroyPlugin == nullptr) {
-			Qlog.Error() << "Get destroy plugin function failed: " << dlerror() << std::endl;
+			Qlog.Error() << "Get destroy plugin function failed: " << dlerror() << endl;
 			dlclose(handle);
 			plugin_status_ = Bad_Plugin;
 			return;

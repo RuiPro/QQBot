@@ -10,6 +10,7 @@
 #include "json/json.hpp"
 #include "MainProcess.h"
 #include "Functions.h"
+using namespace std;
 using json = nlohmann::json;
 
 MainProcess::MainProcess(int argc, char** argv) {
@@ -19,10 +20,10 @@ MainProcess::MainProcess(int argc, char** argv) {
 	}
 	// 打印信息
 	cout << "\033[36m" << "~ Build by Ruimix ~" << "\033[0m" << endl;
-	cout << "\033[33m" << setw(36) << std::left << "Using libcurl version: " << setw(20) << curl_version() << "\033[0m" << endl;
-	cout << "\033[33m" << setw(36) << std::left << "Using libevent version: " << setw(20) << LIBEVENT_VERSION << "\033[0m" << endl;
-	cout << "\033[33m" << setw(36) << std::left << "Using json for Modern C++ version: " << setw(20)
-		<< std::to_string(NLOHMANN_JSON_VERSION_MAJOR) + "." + std::to_string(NLOHMANN_JSON_VERSION_MINOR) + "." + std::to_string(NLOHMANN_JSON_VERSION_PATCH)
+	cout << "\033[33m" << setw(36) << left << "Using libcurl version: " << setw(20) << curl_version() << "\033[0m" << endl;
+	cout << "\033[33m" << setw(36) << left << "Using libevent version: " << setw(20) << LIBEVENT_VERSION << "\033[0m" << endl;
+	cout << "\033[33m" << setw(36) << left << "Using json for Modern C++ version: " << setw(20)
+		<< to_string(NLOHMANN_JSON_VERSION_MAJOR) + "." + to_string(NLOHMANN_JSON_VERSION_MINOR) + "." + to_string(NLOHMANN_JSON_VERSION_PATCH)
 		<< "\033[0m" << endl;
 	// 获取程序路径
 	app_path_ = GetPath();
@@ -47,7 +48,7 @@ MainProcess::MainProcess(int argc, char** argv) {
 	msg_queue_ = new queue<string>;
 	plugins_list_ = new vector<LoadedPlugin*>;
 	// 实例化QQBot对象
-	bot_ = new QQBot(cqhttp_addr_, access_token_);
+	bot_ = new QQBot(cqhttp_addr_, access_token_, use_cache);
 	// 获取Cqhttp和QQBot对象的信息
 	if (bot_->PrintCqhttpVersion() != 0) {
 		status_flag_ = STATUS_BAD;
@@ -58,6 +59,7 @@ MainProcess::MainProcess(int argc, char** argv) {
 		return;
 	}
 	bot_->PrintFriendList();
+	bot_->PrintUFriendList();
 	bot_->PrintGroupList();
 	// 加载插件
 	if (LoadDir(app_path_ + "plugins/") != 0) {
@@ -68,11 +70,11 @@ MainProcess::MainProcess(int argc, char** argv) {
 		status_flag_ = STATUS_BAD;
 		return;
 	}
-	Qlog.Info() << "Load plugins: " << plugins_list_->size() << std::endl;
+	Qlog.Info() << "Load plugins: " << plugins_list_->size() << endl;
 }
 
 MainProcess::~MainProcess() {
-	cout << "\033[31m\033[1m" << "Program exiting..." << "\033[0m" << endl;
+	cout << "\033[31m\033[1m" << "\nProgram exiting..." << "\033[0m" << endl;
 	if (status_flag_ != STATUS_BAD) {
 		event_base_loopbreak(ev_thread_base_);
 		event_base_loopbreak(ev_main_base_);
@@ -102,7 +104,7 @@ void MainProcess::Exec() {
 	evhttp_set_cb(ev_http_, "/", HTTPRequestCB, this);
 	thread_pool_->AddTask(event_base_dispatch, ev_thread_base_);
 
-	// 在主线程中执数据处理事件循环，每秒循环20次
+	// 在主线程中执数据处理事件循环
 	ev_main_base_ = event_base_new();
 	while (true) {
 		ev_timer_ = evtimer_new(ev_main_base_, TickEventCB, this);
@@ -119,7 +121,7 @@ string MainProcess::GetPath() {
 	if (argv0[0] == '.' && argv0[1] == '/') {       // 如果程序位置在当前路径下的子路径
 		char path[1024]{ 0 };
 		if (getcwd(path, 1024) == nullptr) {        // 程序路径 = 当前工作路径 拼接 程序执行路径
-			Qlog.Error() << "Failed to get app path!" << std::endl;
+			Qlog.Error() << "Failed to get app path!" << endl;
 			return env_path;
 		}
 		env_path = path;
@@ -129,7 +131,7 @@ string MainProcess::GetPath() {
 		char path1[1024]{ 0 };
 		char path2[1024]{ 0 };
 		if (getcwd(path1, 1023) == nullptr) {       // 程序路径 = 求绝对路径(当前工作路径 拼接 程序执行路径)
-			Qlog.Error() << "Failed to get app path!" << std::endl;
+			Qlog.Error() << "Failed to get app path!" << endl;
 			return env_path;
 		}
 		env_path = path1;
@@ -153,16 +155,17 @@ int MainProcess::ConfigFileInit() {
 	ifstream f;
 	f.open(config_path);
 	if (!f.is_open()) {
-		Qlog.Info() << "File config.json does not exist, creating..." << std::endl;
+		Qlog.Info() << "File config.json does not exist, creating..." << endl;
 		ofstream new_file;
-		new_file.open(config_path, std::ios::out | std::ios::app);
+		new_file.open(config_path, ios::out | ios::app);
 		if (!new_file.is_open()) {
-			Qlog.Error() << "File config.json filed to create!" << std::endl;
-			std::cout << "\033[31m" << "Program exiting..." << "\033[0m" << std::endl;
+			Qlog.Error() << "File config.json filed to create!" << endl;
+			cout << "\033[31m" << "Program exiting..." << "\033[0m" << endl;
 			return -1;
 		}
 		new_file << R"({
 	"TPS": 20,
+	"use_cache": true,
 	"bind_port": 12345,
 	"go-cqhttp_IP": "127.0.0.1",
 	"go-cqhttp_port": 5700,
@@ -172,11 +175,15 @@ int MainProcess::ConfigFileInit() {
 		"max_task_num": 32,
 		"adjust_range": 5,
 		"manager_interval": 2000
+	},
+	"CorePlugin":{
+		"auto_add_friend": true,
+		"auto_join_group": true
 	}
 }
 		)";
 		new_file.close();
-		Qlog.Info() << "File config.json created successfully." << std::endl;
+		Qlog.Info() << "File config.json created successfully." << endl;
 	}
 	f.close();
 	return 0;
@@ -186,19 +193,20 @@ int MainProcess::AnalysisConfig() {
 	string config_path = app_path_ + "config.json";
 	ifstream config_file(config_path);
 	if (!config_file.is_open()) {
-		Qlog.Error() << "Failed to open file config.json." << std::endl;
-		std::cout << "\033[31m" << "Program exiting..." << "\033[0m" << std::endl;
+		Qlog.Error() << "Failed to open file config.json." << endl;
+		cout << "\033[31m" << "Program exiting..." << "\033[0m" << endl;
 		return -1;
 	}
 	try {
 		json config;
 		config_file >> config;
 		if (!config.is_object()) {
-			Qlog.Error() << "Cann't get json from config.json." << std::endl;
-			std::cout << "\033[31m" << "Program exiting..." << "\033[0m" << std::endl;
+			Qlog.Error() << "Cann't get json from config.json." << endl;
+			cout << "\033[31m" << "Program exiting..." << "\033[0m" << endl;
 			return -1;
 		}
 		if (config.find("TPS") == config.end() ||
+			config.find("use_cache") == config.end() ||
 			config.find("bind_port") == config.end() ||
 			config.find("go-cqhttp_IP") == config.end() ||
 			config.find("go-cqhttp_port") == config.end() ||
@@ -206,12 +214,16 @@ int MainProcess::AnalysisConfig() {
 			config["thread_pool"].find("max_thread_num") == config["thread_pool"].end() ||
 			config["thread_pool"].find("max_task_num") == config["thread_pool"].end() ||
 			config["thread_pool"].find("adjust_range") == config["thread_pool"].end() ||
-			config["thread_pool"].find("manager_interval") == config["thread_pool"].end()) {
-			Qlog.Error() << "Required value not found in config.json" << std::endl;
-			Qlog.Error() << "You may be able to delete config.json and reconfigure it." << std::endl;
+			config["thread_pool"].find("manager_interval") == config["thread_pool"].end() ||
+			config.find("CorePlugin") == config.end() ||
+			config["CorePlugin"].find("auto_add_friend") == config["CorePlugin"].end() ||
+			config["CorePlugin"].find("auto_join_group") == config["CorePlugin"].end()) {
+			Qlog.Error() << "Required value not found in config.json" << endl;
+			Qlog.Error() << "You may be able to delete config.json and reconfigure it." << endl;
 			return -1;
 		}
 		TPS_ = config["TPS"];
+		use_cache = config["use_cache"];
 		bind_port_ = config["bind_port"];
 		string cqhttp_IP = config["go-cqhttp_IP"];
 		unsigned short cqhttp_port = config["go-cqhttp_port"];
@@ -219,10 +231,12 @@ int MainProcess::AnalysisConfig() {
 		thread_pool_max_task_num_ = config["thread_pool"]["max_task_num"];
 		thread_pool_adjust_range_ = config["thread_pool"]["adjust_range"];
 		thread_pool_manager_interval_ = config["thread_pool"]["manager_interval"];
+		auto_add_friend_ = config["CorePlugin"]["auto_add_friend"];
+		auto_join_group_ = config["CorePlugin"]["auto_join_group"];
 		if (TPS_ <= 0 || cqhttp_IP.empty() || cqhttp_port == 0 || bind_port_ == 0 || thread_pool_max_thread_num_ < 0 ||
 			thread_pool_max_task_num_ <= 0 || thread_pool_adjust_range_ <= 0 || thread_pool_manager_interval_ < 0) {
-			Qlog.Error() << "Invalid config value found! Please check the config.json." << std::endl;
-			std::cout << "\033[31m" << "Program exiting..." << "\033[0m" << std::endl;
+			Qlog.Error() << "Invalid config value found! Please check the config.json." << endl;
+			cout << "\033[31m" << "Program exiting..." << "\033[0m" << endl;
 			return -1;
 		}
 		cqhttp_addr_ = cqhttp_IP + ":" + to_string(cqhttp_port);
@@ -242,8 +256,8 @@ int MainProcess::AnalysisConfig() {
 		cout << "\033[32m" << "--------------------------------------------------------" << "\033[0m" << endl;
 		return 0;
 	}
-	catch (const std::exception& e) {
-		Qlog.Error() << "Failed to analysis config json:" << e.what() << std::endl;
+	catch (const exception& e) {
+		Qlog.Error() << "Failed to analysis config json:" << e.what() << endl;
 		return -1;
 	}
 }
@@ -274,7 +288,7 @@ int MainProcess::LoadPlugins() {
 	string plugins_dir_path = app_path_ + "plugins/";
 	DIR* dir = opendir(plugins_dir_path.c_str());
 	if (dir == nullptr) {
-		Qlog.Error() << "Faild to open diretory: " << plugins_dir_path << std::endl;
+		Qlog.Error() << "Faild to open diretory: " << plugins_dir_path << endl;
 		return -1;
 	}
 	dirent* file;
@@ -311,23 +325,23 @@ int MainProcess::LoadDir(const string& dir_path) {
 	if (stat(dir_path.c_str(), &plugins_dir_info) != 0) {
 		if (errno == ENOENT) {
 			if (mkdir(dir_path.c_str(), 0755) != 0) {
-				Qlog.Error() << "Failed to create diretory: " << dir_path << std::endl;
+				Qlog.Error() << "Failed to create diretory: " << dir_path << endl;
 				return -1;
 			}
 			return 0;
 		}
 		else {
-			Qlog.Error() << "Failed to check plugins diretory. Error code: " << errno << std::endl;
+			Qlog.Error() << "Failed to check plugins diretory. Error code: " << errno << endl;
 			return -1;
 		}
 	}
 	// 如果存在，判断是否可读
 	if ((plugins_dir_info.st_mode & S_IFDIR) == 0) {
-		Qlog.Error() << dir_path << " is not a diretory." << std::endl;
+		Qlog.Error() << dir_path << " is not a diretory." << endl;
 		return -1;
 	}
 	if (access(dir_path.c_str(), F_OK | R_OK | X_OK) != 0) {
-		Qlog.Error() << "Unable to access " << dir_path << ", folder does not exist or permission deny." << std::endl;
+		Qlog.Error() << "Unable to access " << dir_path << ", folder does not exist or permission deny." << endl;
 		return -1;
 	}
 	return 0;

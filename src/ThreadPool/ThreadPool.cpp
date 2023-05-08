@@ -211,7 +211,12 @@ void WorkerThread::worker_func() {
         // 工作线程数量加一
         ++pool->working_thread_num;
         // 执行任务
-        task();
+        try {
+            task();
+        }
+        catch (...) {
+            printf("ThreadPool Exception: a task is not running properly.\n");
+        }
         // 执行完任务，工作线程数量减一
         --pool->working_thread_num;
     }
