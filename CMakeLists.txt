@@ -1,33 +1,108 @@
 cmake_minimum_required (VERSION 3.8)
+set(CMAKE_BUILD_TYPE "Debug")           # 设置模式
 set(CMAKE_CXX_STANDARD 11)
 project ("QQBot" CXX C)
 
-add_executable (QQBot.out 
+# 输出目录
+# 可执行文件
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin/debug)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/release)
+# 动态库文件
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin/debug/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/release/lib)
+# 静态库文件
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin/debug/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/release/lib)
+
+add_executable (QQBot.app 
  "src/main.cpp"
- "src/ThreadPool/ThreadPool.hpp"
- "src/ThreadPool/ThreadPool.cpp"
+ "src/ThreadPool/thread_pool.hpp"
+ "src/ThreadPool/thread_pool.cpp"
  "src/json/json.hpp"
  "src/MainProcess.cpp"
  "src/Functions.cpp")
 
+ # 自建库
+ add_library(QQBotLog SHARED  "src/QQBotLog/QQBotLog.cpp")
+ add_library(QQ SHARED  "src/QQ/QQMessage.cpp"  "src/QQ/QQ.cpp")
+
+ # 外部库
 include_directories(${PROJECT_SOURCE_DIR}/src/include/libevent)
 include_directories(${PROJECT_SOURCE_DIR}/src/include/libcurl)
 
-add_library(QQBotLog SHARED  "src/QQBotLog/QQBotLog.cpp")
-target_link_libraries(QQBot.out QQBotLog)
+# 链接库
+target_link_libraries(QQBot.app QQBotLog)
+target_link_libraries(QQBot.app QQ)
+target_link_libraries(QQBot.app "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libcurl/libcurl.so")
+target_link_libraries(QQBot.app "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent-2.1.so.7")
+target_link_libraries(QQBot.app "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_core-2.1.so.7")
+target_link_libraries(QQBot.app "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_extra-2.1.so.7")
+target_link_libraries(QQBot.app "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_pthreads-2.1.so.7")
+target_link_libraries(QQBot.app pthread)
+target_link_libraries(QQBot.app dl)
 
-add_library(QQ SHARED  "src/QQ/QQMessage.cpp"  "src/QQ/QQ.cpp")
-target_link_libraries(QQBot.out QQ)
+# 设置可执行文件检索的库路径
+ set_target_properties(QQBot.app PROPERTIES
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH "\$ORIGIN/lib"
+)
 
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libcurl/libcurl.so")
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent.so")
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_core.so")
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_extra.so")
-target_link_libraries(QQBot.out "${PROJECT_SOURCE_DIR}/lib/libevent/libevent_pthreads.so")
-target_link_libraries(QQBot.out pthread)
-target_link_libraries(QQBot.out dl)
-
-set(LIBRARY_OUTPUT_PATH /root/app/${PROJECT_NAME})
-set(EXECUTABLE_OUTPUT_PATH /root/app/${PROJECT_NAME})
-
-set(CMAKE_CXX_STANDARD 11)
+# 复制库文件
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message("Copy library to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/lib")
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libcurl/libcurl.so
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/lib
+    )
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent-2.1.so.7
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/lib
+    ) 
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_core-2.1.so.7
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/lib
+    ) 
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_extra-2.1.so.7
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/lib
+    ) 
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_pthreads-2.1.so.7
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/lib
+    ) 
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    message("Copy library to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/lib")
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libcurl/libcurl.so
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/lib
+    )
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent-2.1.so.7
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/lib
+    ) 
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_core-2.1.so.7
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/lib
+    ) 
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_extra-2.1.so.7
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/lib
+    ) 
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent_pthreads-2.1.so.7
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/lib
+    ) 
+endif ()

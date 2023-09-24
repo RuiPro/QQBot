@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 #include <queue>
-#include "ThreadPool/ThreadPool.hpp"
+#include "ThreadPool/thread_pool.hpp"
 #include "json/json.hpp"
 #include "QQ/QQ.h"
 #include "LoadPlugin.h"

@@ -1514,7 +1514,9 @@ int QQBot::GroupKickMember(const QQGroup& group, const QQGroupMember& member, bo
 string QQBot::GetQQHeaderImageURL(unsigned int QQid) {
 	// https://qlogo3.store.qq.com/qzone/(%QQID%)/(%QQID%)/640.jfif		//OK
 	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(%QQID%)&spec=640		//OK
-	return "https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=" + to_string(QQid) + "&spec=640";
+	// https://q1.qlogo.cn/g?b=qq&nk=(%QQID%)&s=640
+	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(%QQID%)&spec=640
+	return "https://q1.qlogo.cn/g?b=qq&nk=" + to_string(QQid) + "&s=640";
 }
 
 // 私有成员函数
