@@ -1,7 +1,7 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
-#include "MainProcess.h"
+#include "main_process.h"
 
 void CorePlugin(const string& msg, MainProcess* m);
 

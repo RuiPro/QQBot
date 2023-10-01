@@ -1,4 +1,4 @@
-#include "MainProcess.h"
+#include "main_process.h"
 #include <csignal>
 
 MainProcess* process = nullptr;
@@ -11,7 +11,7 @@ void signalHandler(int signal) {
 int main(int argc, char** argv) {
     signal(SIGINT, signalHandler);
 	process = new MainProcess(argc, argv);
-	process->Exec();
+	process->exec();
 	delete process;
 	return 0;
 }

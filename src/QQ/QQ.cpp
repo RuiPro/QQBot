@@ -2,800 +2,733 @@
 #include <chrono>
 #include "QQ.h"
 
-vector<QQGroupMember>::iterator QQGroup::FindMember(unsigned int QQid) {
-	vector<QQGroupMember>::iterator iter = group_member_list_.begin();
-	for (; iter != group_member_list_.end(); iter++) {
-		if (iter->id_ == QQid) return iter;
-	}
-	return iter;
+// 创建Bot实例
+ThisBot* ThisBot::sm_bot;
+void createBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache = true) {
+	ThisBot::sm_bot = new ThisBot(cqhttp_addr, cqhttp_access_token, m_cqhttp_use_cache);
 }
 
-bool QQGroup::GetGroupHasMember(unsigned int QQid) const {
-	auto iter = group_member_list_.cbegin();
-	for (; iter != group_member_list_.end(); iter++) {
-		if (iter->id_ == QQid) return true;
-	}
-	return false;
+// curl 回调函数
+size_t curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
+	((string*)userdata)->append(ptr, size * nmemb);
+	return size * nmemb;
 }
 
-QQFriend QQBot::NULLFriend = QQFriend(0);
-QQGroup QQBot::NULLGroup = QQGroup(0);
-
-/************************QQBot类的成员函数***************************/
-// 这些函数用以获取Bot中已设置的信息
-unsigned int QQBot::GetBotID() {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	unsigned int ret = QQBot_id_;
+// 【Get】这些函数用以获取Bot中已设置的信息
+unsigned int ThisBot::getThisBotID() const {
+	unsigned int ret = m_id;
 	return ret;
 }
-string QQBot::GetBotNickname() {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	string ret = QQBot_nickname_;
+string ThisBot::getThisBotNickname() const {
+	string ret = m_nickname;
 	return ret;
 }
-bool QQBot::GetBotHasAdmin() {
+bool ThisBot::getThisBotHasAdmin() const {
 	bool ret = true;
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	if (administrator_.id_ == 0) ret = false;
+	if (m_administrator_id == 0) ret = false;
 	return ret;
 }
-QQFriend QQBot::GetBotAdmin() {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	QQFriend ret = administrator_;
+QQFriend ThisBot::getThisBotAdmin() const {
+	QQFriend ret = m_administrator_id;
 	return ret;
 }
-int QQBot::GetBotFriendNum() {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	int ret = QQBot_friend_list_.size();
+int ThisBot::getThisBotFriendNum() const {
+	int ret = 0;
+	string SQL("SELECT COUNT(*) FROM friend_list;");
+	sqlite_c->query(SQL);
+	sqlite_c->query_result->nextRow();
+	ret = stoi(sqlite_c->query_result->rowValue(0));
 	return ret;
 }
-int QQBot::GetBotUFriendNum() {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	int ret = QQBot_Ufriend_list_.size();
+int ThisBot::getThisBotUFriendNum() const {
+	int ret = 0;
+	string SQL("SELECT COUNT(*) FROM ufriend_list;");
+	sqlite_c->query(SQL);
+	sqlite_c->query_result->nextRow();
+	ret = stoi(sqlite_c->query_result->rowValue(0));
 	return ret;
 }
-int QQBot::GetBotGroupNum() {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	int ret = QQBot_group_list_.size();
+int ThisBot::getThisBotGroupNum() const {
+	int ret = 0;
+	string SQL("SELECT COUNT(*) FROM group_list;");
+	sqlite_c->query(SQL);
+	sqlite_c->query_result->nextRow();
+	ret = stoi(sqlite_c->query_result->rowValue(0));
 	return ret;
 }
-bool QQBot::GetBotHasQQFriend(unsigned int friend_id) {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	auto iter = FindQQFriend(friend_id);
-	if (iter != QQBot_friend_list_.end())return true;
-	return false;
+int ThisBot::getGroupMemberNum(unsigned int group_id) const {
+	int ret = 0;
+	string SQL("SELECT COUNT(*) FROM group_member_list WHERE group_id=");
+	SQL.append(to_string(group_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	sqlite_c->query_result->nextRow();
+	ret = stoi(sqlite_c->query_result->rowValue(0));
+	return ret;
 }
-bool QQBot::GetBotHasQQUFriend(unsigned int friend_id) {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	auto iter = FindQQUFriend(friend_id);
-	if (iter != QQBot_Ufriend_list_.end())return true;
-	return false;
+bool ThisBot::getThisBotHasFriend(unsigned int friend_id) const {
+	string SQL("SELECT * FROM friend_list WHERE user_id=");
+	SQL.append(to_string(friend_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	return sqlite_c->query_result->nextRow();
 }
-bool QQBot::GetBotHasQQGroup(unsigned int group_id) {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	auto iter = FindQQGroup(group_id);
-	if (iter != QQBot_group_list_.end())return true;
-	return false;
+bool ThisBot::getThisBotHasUFriend(unsigned int ufriend_id) const {
+	string SQL("SELECT * FROM ufriend_list WHERE user_id=");
+	SQL.append(to_string(ufriend_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	return sqlite_c->query_result->nextRow();
 }
-const QQFriend QQBot::GetBotFriend(unsigned int friend_id) {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	auto iter = FindQQFriend(friend_id);
-	if (iter != QQBot_friend_list_.end())return (*iter);
-	return NULLFriend;
+bool ThisBot::getThisBotHasGroup(unsigned int group_id) const {
+	string SQL("SELECT * FROM group_list WHERE group_id=");
+	SQL.append(to_string(group_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	return sqlite_c->query_result->nextRow();
 }
-const QQGroup QQBot::GetBotGroup(unsigned int group_id) {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	auto iter = FindQQGroup(group_id);
-	if (iter != QQBot_group_list_.end())return (*iter);
-	return NULLGroup;
+bool ThisBot::getGroupHasMember(unsigned int group_id, unsigned int member_id) const {
+	string SQL("SELECT * FROM group_member_list WHERE group_id=");
+	SQL.append(to_string(group_id));
+	SQL.append(" AND user_id=");
+	SQL.append(to_string(member_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	return sqlite_c->query_result->nextRow();
 }
-const vector<unsigned int> QQBot::GetBotGroupIDList() {
+QQFriend ThisBot::getThisBotFriend(unsigned int friend_id) const {
+	QQFriend f(0);
+	string SQL("SELECT * FROM friend_list WHERE user_id=");
+	SQL.append(to_string(friend_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	if (!sqlite_c->query_result->nextRow()) return f;
+	f.m_id = friend_id;
+	f.m_name = sqlite_c->query_result->rowValue(1);
+	f.m_friend_remark = sqlite_c->query_result->rowValue(2);
+	return f;
+}
+QQUFriend ThisBot::getThisBotUFriend(unsigned int friend_id) const {
+	QQUFriend uf(0);
+	string SQL("SELECT * FROM ufriend_list WHERE user_id=");
+	SQL.append(to_string(friend_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	if (!sqlite_c->query_result->nextRow()) return uf;
+	uf.m_id = friend_id;
+	uf.m_name = sqlite_c->query_result->rowValue(1);
+	uf.m_source = sqlite_c->query_result->rowValue(2);
+	return uf;
+}
+QQGroup ThisBot::getThisBotGroup(unsigned int group_id) const {
+	QQGroup g(0);
+	string SQL("SELECT * FROM group_list WHERE group_id=");
+	SQL.append(to_string(group_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	if (!sqlite_c->query_result->nextRow()) return g;
+	g.m_id = group_id;
+	g.m_name = sqlite_c->query_result->rowValue(1);
+	g.m_member_count = stoi(sqlite_c->query_result->rowValue(2));
+	g.m_max_member_count = stoi(sqlite_c->query_result->rowValue(3));
+	g.m_group_create_time = stoi(sqlite_c->query_result->rowValue(4));
+	g.m_group_level = stoi(sqlite_c->query_result->rowValue(5));
+	g.m_group_remark = sqlite_c->query_result->rowValue(6);
+	return g;
+}
+QQGroupMember ThisBot::getGroupMember(unsigned int group_id, unsigned int member_id) const {
+	QQGroupMember gm(0);
+	string SQL("SELECT * FROM group_member_list WHERE group_id=");
+	SQL.append(to_string(group_id));
+	SQL.append(" AND user_id=");
+	SQL.append(to_string(member_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	if (!sqlite_c->query_result->nextRow()) return gm;
+	gm.m_id = member_id;
+	gm.m_group_id = group_id;
+	gm.m_name = sqlite_c->query_result->rowValue(2);
+	gm.m_user_age = stoi(sqlite_c->query_result->rowValue(3));
+	gm.m_user_area = sqlite_c->query_result->rowValue(4);
+	gm.m_user_gender = stoi(sqlite_c->query_result->rowValue(5));
+	gm.m_group_nickname = sqlite_c->query_result->rowValue(6);
+	gm.m_group_nickname_changeable = sqlite_c->query_result->rowValue(7) == "0" ? false : true;
+	gm.m_group_join_time = stoi(sqlite_c->query_result->rowValue(8));
+	gm.m_group_last_active_time = stoi(sqlite_c->query_result->rowValue(9));
+	gm.m_group_level = sqlite_c->query_result->rowValue(10);
+	switch (stoi(sqlite_c->query_result->rowValue(11))) {
+	case 0:
+		gm.m_group_role = QQGroupRole::member;
+		break;
+	case 1:
+		gm.m_group_role = QQGroupRole::administrator;
+		break;
+	case 2:
+		gm.m_group_role = QQGroupRole::owner;
+		break;
+	}
+	gm.m_group_mute_time = stoi(sqlite_c->query_result->rowValue(12));
+	gm.m_group_title = sqlite_c->query_result->rowValue(13);
+	gm.m_group_title_expire_time = stoi(sqlite_c->query_result->rowValue(14));
+	gm.m_group_is_unfriendly = sqlite_c->query_result->rowValue(15) == "0" ? false : true;
+	return gm;
+}
+vector<unsigned int> ThisBot::getThisBotFriendIDList() const {
 	vector<unsigned int> ret;
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	for (auto& value : QQBot_group_list_) {
-		ret.push_back(value.id_);
+	string SQL("SELECT user_id FROM friend_list;");
+	sqlite_c->query(SQL);
+	while (sqlite_c->query_result->nextRow()) {
+		ret.push_back(stoi(sqlite_c->query_result->rowValue(0)));
 	}
 	return ret;
 }
-const vector<unsigned int> QQBot::GetBotFriendIDList() {
+vector<unsigned int> ThisBot::getThisBotUFriendIDList() const {
 	vector<unsigned int> ret;
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	for (auto& element : QQBot_friend_list_) {
-		ret.push_back(element.id_);
+	string SQL("SELECT user_id FROM ufriend_list;");
+	sqlite_c->query(SQL);
+	while (sqlite_c->query_result->nextRow()) {
+		ret.push_back(stoi(sqlite_c->query_result->rowValue(0)));
 	}
 	return ret;
 }
-const vector<unsigned int> QQBot::GetBotUFriendIDList() {
+vector<unsigned int> ThisBot::getThisBotGroupIDList() const {
 	vector<unsigned int> ret;
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	for (auto& element : QQBot_Ufriend_list_) {
-		ret.push_back(element.id_);
+	string SQL("SELECT group_id FROM group_list;");
+	sqlite_c->query(SQL);
+	while (sqlite_c->query_result->nextRow()) {
+		ret.push_back(stoi(sqlite_c->query_result->rowValue(0)));
 	}
 	return ret;
 }
-string QQBot::GetBotAccessToken() const {
-	return access_token_;
-}
-void QQBot::PrintFriendList() {
-	Qlog.Info() << " ┌─ \033[34mQQ friends list\033[0m" << endl;
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	for (auto& element : QQBot_friend_list_) {
-		Qlog.Info() << " ├─ " << element.name_ << "(" << element.id_ << ")" << endl;
+vector<unsigned int> ThisBot::getGroupMemberIDList(unsigned int group_id) const {
+	vector<unsigned int> ret;
+	string SQL("SELECT user_id FROM group_member_list WHERE group_id=");
+	SQL.append(to_string(group_id));
+	SQL.append(";");
+	sqlite_c->query(SQL);
+	while (sqlite_c->query_result->nextRow()) {
+		ret.push_back(stoi(sqlite_c->query_result->rowValue(0)));
 	}
-	Qlog.Info() << " └─ \033[34mTotal num: " << QQBot_friend_list_.size() << "\033[0m" << endl;
+	return ret;
 }
-void QQBot::PrintUFriendList() {
-	Qlog.Info() << " ┌─ \033[34mQQ unidirectional friends list\033[0m" << endl;
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	for (auto& element : QQBot_Ufriend_list_) {
-		Qlog.Info() << " ├─ " << element.name_ << "(" << element.id_ << ")" << endl;
+void ThisBot::printFriendList() const {
+	string SQL("SELECT * FROM friend_list;");
+	sqlite_c->query(SQL);
+	loger.info() << " ┌─ \033[34mQQ friends list\033[0m" << endl;
+	while (sqlite_c->query_result->nextRow()) {
+		loger.info() << " ├─ " << sqlite_c->query_result->rowValue(1) << "(" << sqlite_c->query_result->rowValue(0) << ")" << endl;
 	}
-	Qlog.Info() << " └─ \033[34mTotal num: " << QQBot_Ufriend_list_.size() << "\033[0m" << endl;
+	loger.info() << " └─ \033[34mTotal num: " << getThisBotFriendNum() << "\033[0m" << endl;
 }
-void QQBot::PrintGroupList() {
-	Qlog.Info() << " ┌─ \033[34mQQ groups list\033[0m" << endl;
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	for (auto& element : QQBot_group_list_) {
-		Qlog.Info() << " ├─ " << element.name_ << "(" << element.id_ << ")" << endl;
+void ThisBot::printUFriendList() const {
+	string SQL("SELECT * FROM ufriend_list;");
+	sqlite_c->query(SQL);
+	loger.info() << " ┌─ \033[34mQQ unidirectional friends list\033[0m" << endl;
+	while (sqlite_c->query_result->nextRow()) {
+		loger.info() << " ├─ " << sqlite_c->query_result->rowValue(1) << "(" << sqlite_c->query_result->rowValue(0) << ")" << endl;
 	}
-	Qlog.Info() << " └─ \033[34mTotal num: " << QQBot_group_list_.size() << "\033[0m" << endl;
+	loger.info() << " └─ \033[34mTotal num: " << getThisBotUFriendNum() << "\033[0m" << endl;
+} 
+void ThisBot::printGroupList() const {
+	string SQL("SELECT * FROM group_list;");
+	sqlite_c->query(SQL);
+	loger.info() << " ┌─ \033[34mQQ groups list\033[0m" << endl;
+	while (sqlite_c->query_result->nextRow()) {
+		loger.info() << " ├─ " << sqlite_c->query_result->rowValue(1) << "(" << sqlite_c->query_result->rowValue(0) << ")" << endl;
+	}
+	loger.info() << " └─ \033[34mTotal num: " << getThisBotGroupNum() << "\033[0m" << endl;
 }
 
-// 这些函数用以设置Bot的信息
-int QQBot::SetBotAdmin(unsigned int admin_id) {
-	unique_lock<mutex> auto_lock(QQ_lock_);
-	if (FindQQFriend(admin_id) != QQBot_friend_list_.end()) {
-		administrator_ = QQFriend(admin_id);
+// 【Set】这些函数用以手动设置Bot的某些信息
+int ThisBot::setThisBotAdmin(unsigned int admin_id) {
+	if (admin_id == m_id) {
+		return 0;
+	}
+	if (getThisBotHasFriend(admin_id) >= 0) {
+		m_administrator_id = admin_id;
 	}
 	else {
-		Qlog.Error() << "The administrator is not a friend of QQ bot, setting failed." << endl;
+		loger.error() << "The administrator is not a friend of QQ bot, setting failed." << endl;
 		return -1;
 	}
 	return 0;
 }
-int QQBot::SetBotBasicInfo() {
+void ThisBot::setCqhttpAddr(const string& addr) {
+	ThisBot::m_cqhttp_addr = addr;
+}
+void ThisBot::setUseCqhttpCache(bool flag) {
+	ThisBot::m_cqhttp_use_cache = flag;
+}
+void ThisBot::setCqhttpAccessToken(const string& token) {
+	ThisBot::m_cqhttp_access_token = token;
+}
+
+// 【Fetch】这些函数用以从go-cqhttp获取Bot的信息并保存或更新到Bot的成员变量内，内部都使用了互斥锁同步。
+int ThisBot::fetchThisBotBasicInfo() {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_login_info";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/get_login_info";
 		string data_buffer;
-		if (SendGETRequest(URL, data_buffer) != 0) return -1;
+		if (sendGETRequest(URL, data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
-			unique_lock<mutex> auto_lock(QQ_lock_);
-			QQBot_id_ = json_data["data"]["user_id"];
-			QQBot_nickname_ = json_data["data"]["nickname"];
-			Qlog.Info() << "Bot information: " << QQBot_nickname_ << "(" << QQBot_id_ << ")" << endl;
+			m_id = json_data["data"]["user_id"];
+			m_nickname = json_data["data"]["nickname"];
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return -1;
 		}
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetBotBasicInfo()." << endl;
+		loger.error() << "Exception in function fetchThisBotBasicInfo." << endl;
 		return -1;
 	}
 }
-int QQBot::SetBotFriendList() {
+int ThisBot::fetchThisBotFriendList() {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_friend_list";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/get_friend_list";
 		string data_buffer;
-		if (SendGETRequest(URL, data_buffer) != 0) return -1;
+		if (sendGETRequest(URL, data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
-			unique_lock<mutex> auto_lock(QQ_lock_);
-			QQBot_friend_list_.clear();
+			sqlite_c->transaction();
+			bool flag = false;
+			flag |= !sqlite_c->update("DELETE FROM friend_list;");
 			for (auto& element : json_data["data"]) {
-				QQBot_friend_list_.push_back(QQFriend(element["user_id"], element["nickname"], element["remark"]));
+				SQL sql("INSERT INTO friend_list VALUES (%1,'%2','%3');");
+				sql.args("%1", element["user_id"]);
+				sql.args("%2", element["nickname"]);
+				sql.args("%3", element["remark"]);
+				flag |= !sqlite_c->update(sql);
 			}
-			Qlog.Info() << "Bot's number of friends: " << QQBot_friend_list_.size() << endl;
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return -1;
-		}
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetBotFriendList()." << endl;
-		return -1;
-	}
-}
-int QQBot::SetBotUFriendList() {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_unidirectional_friend_list";
-		string data_buffer;
-		if (SendGETRequest(URL, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			unique_lock<mutex> auto_lock(QQ_lock_);
-			QQBot_Ufriend_list_.clear();
-			for (auto& element : json_data["data"]) {
-				QQBot_Ufriend_list_.push_back(QQUFriend(element["user_id"], element["nickname"], element["source"]));
+			if (flag) {
+				loger.warn() << "SQLite rollback in function fetchThisBotFriendList." << endl;
+				sqlite_c->rollback();
 			}
-			Qlog.Info() << "Bot's number of unidirectional friends: " << QQBot_Ufriend_list_.size() << endl;
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return -1;
-		}
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetBotUFriendList()." << endl;
-		return -1;
-	}
-}
-int QQBot::SetBotGroupList() {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_group_list";
-		string data_buffer;
-		if (SendGETRequest(URL, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			unique_lock<mutex> auto_lock(QQ_lock_);
-			QQBot_group_list_.clear();
-			for (auto& element : json_data["data"]) {
-				QQGroup group(element["group_id"], element["group_name"], element["member_count"], element["max_member_count"]);
-				QQBot_group_list_.push_back(move(group));
-			}
-			auto_lock.unlock();
-			for (auto& group : QQBot_group_list_) {
-				SetGroupMemberList(group.id_);
-			}
-			for (auto& group : QQBot_group_list_) {
-				for (auto& member : group.group_member_list_) {
-					SetGroupMemberInfo(group.id_, member.id_);
+			else {
+				sqlite_c->commit();
+				if (!getThisBotHasFriend(m_administrator_id)) {
+					setThisBotAdmin(0);
 				}
 			}
-			auto_lock.lock();
-			Qlog.Info() << "Bot's number of groups: " << QQBot_group_list_.size() << endl;
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return -1;
 		}
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetBotGroupList()." << endl;
+		loger.error() << "Exception in function fetchThisBotFriendList." << endl;
 		return -1;
 	}
 }
-int QQBot::SetBotAllInfo() {
-	if (cqhttp_addr_.empty()) {
-		Qlog.Error() << "go-cqhttp address not set!" << endl;
-		return -1;
-	}
-	if (SetBotBasicInfo() != 0) {
-		Qlog.Error() << "Failed to get QQBot information from go-cqhttp!" << endl;
-		return -1;
-	}
-	if (SetBotFriendList() != 0) {
-		Qlog.Error() << "Failed to get QQBot friend list from go-cqhttp!" << endl;
-		return -1;
-	}
-	if (SetBotUFriendList() != 0) {
-		Qlog.Error() << "Failed to get QQBot unidirectional friend list from go-cqhttp!" << endl;
-		return -1;
-	}
-	if (SetBotGroupList() != 0) {
-		Qlog.Error() << "Failed to get QQBot group list from go-cqhttp!" << endl;
-		return -1;
-	}
-	return 0;
-}
-int QQBot::SetGroupInfo(QQGroup& group) {
+int ThisBot::fetchThisBotUFriendList() {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_group_info";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/get_unidirectional_friend_list";
 		string data_buffer;
-		json post_data;
-		post_data["group_id"] = group.id_;
-		post_data["no_cache"] = !use_cache_;
-		if (SendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		if (sendGETRequest(URL, data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
-			group.name_ = json_data["data"]["group_name"];
-			group.member_count_ = json_data["data"]["member_count"];
-			group.max_member_count_ = json_data["data"]["max_member_count"];
+			sqlite_c->transaction();
+			bool flag = false;
+			flag |= !sqlite_c->update("DELETE FROM ufriend_list;");
+			for (auto& element : json_data["data"]) {
+				SQL sql("INSERT INTO ufriend_list VALUES (%1,'%2','%3');");
+				sql.args("%1", element["user_id"]);
+				sql.args("%2", element["nickname"]);
+				sql.args("%3", element["source"]);
+				flag |= !sqlite_c->update(sql);
+			}
+			if (flag) {
+				loger.warn() << "SQLite rollback in function fetchThisBotUFriendList." << endl;
+				sqlite_c->rollback();
+			}
+			else {
+				sqlite_c->commit();
+			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return -1;
 		}
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetGroupInfo(QQGroup&)." << endl;
+		loger.error() << "Exception in function fetchThisBotUFriendList." << endl;
 		return -1;
 	}
 }
-int QQBot::SetGroupMemberList(unsigned int group_id) {
+int ThisBot::fetchThisBotGroupList() {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		if (group_id == 0) return -1;
-		unique_lock<mutex> auto_lock(QQ_lock_);
-		auto group_iter = FindQQGroup(group_id);
-		if (group_iter == QQBot_group_list_.end()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_group_member_list";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/get_group_list";
+		string data_buffer;
+		if (sendGETRequest(URL, data_buffer) != 0) return -1;
+		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			sqlite_c->transaction();
+			bool flag = false;
+			flag |= !sqlite_c->update("DELETE FROM group_list;");
+			flag |= !sqlite_c->update("DELETE FROM group_member_list;");
+			for (auto& element : json_data["data"]) {
+				SQL sql("INSERT INTO group_list VALUES (%1,'%2',%3,%4,%5,%6,'%7');");
+				sql.args("%1", element["group_id"]);
+				sql.args("%2", element["group_name"]);
+				sql.args("%3", element["member_count"]);
+				sql.args("%4", element["max_member_count"]);
+				sql.args("%5", element["group_create_time"]);
+				sql.args("%6", element["group_level"]);
+				sql.args("%7", element["group_memo"]);
+				flag |= !sqlite_c->update(sql);
+			}
+			if (flag) {
+				loger.warn() << "SQLite rollback in function fetchThisBotGroupList." << endl;
+				sqlite_c->rollback();
+			}
+			else {
+				sqlite_c->commit();
+			}
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return -1;
+		}
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function fetchThisBotGroupList." << endl;
+		return -1;
+	}
+}
+int ThisBot::fetchThisBotGroupMemberList(unsigned int group_id) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/get_group_member_list";
 		string data_buffer;
 		json post_data;
 		post_data["group_id"] = group_id;
-		post_data["no_cache"] = !use_cache_;
-		if (SendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		post_data["no_cache"] = !m_cqhttp_use_cache;
+		if (sendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
-			group_iter->group_member_list_.clear();
-			for (auto& x : json_data["data"]) {
-				QQGroupMember member(x["user_id"], x["nickname"], x["card"], x["group_id"], x["title"]);
-				string role = x["role"];
-				if (role == "member") {
-					member.role_ = 0;
+			sqlite_c->transaction();
+			bool flag = false;
+			flag |= !sqlite_c->update("DELETE FROM group_member_list WHERE group_id=" + to_string(group_id) + ";");
+			for (auto& element : json_data["data"]) {
+				SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,%x0,'%x1',%x2,%x3,'%x4',%x5,%x6);");
+				sql.args("%1", element["user_id"]);
+				sql.args("%2", element["group_id"]);
+				sql.args("%3", element["nickname"]);
+				sql.args("%4", element["age"]);
+				sql.args("%5", element["area"]);
+				if (element["sex"] == "unknown") {
+					sql.args("%6", "0");
 				}
-				else if (role == "admin") {
-					member.role_ = 1;
+				else if (element["sex"] == "male") {
+					sql.args("%6", "1");
 				}
-				else if (role == "owner") {
-					member.role_ = 2;
+				else if (element["sex"] == "female") {
+					sql.args("%6", "2");
 				}
-				group_iter->group_member_list_.push_back(move(member));
+				sql.args("%7", element["card"]);
+				sql.args("%8", element["card_changeable"] == "false" ? "0" : "1");
+				sql.args("%9", element["join_time"]);
+				sql.args("%x0", element["last_sent_time"]);
+				sql.args("%x1", element["level"]);
+				if (element["role"] == "member") {
+					sql.args("%x2", "0");
+				}
+				else if (element["role"] == "admin") {
+					sql.args("%x2", "1");
+				}
+				else if (element["role"] == "owner") {
+					sql.args("%x2", "2");
+				}
+				sql.args("%x3", element["shut_up_timestamp"]);
+				sql.args("%x4", element["title"]);
+				sql.args("%x5", element["title_expire_time"]);
+				sql.args("%x6", element["unfriendly"] ? "1" : "0");
+				bool ret = sqlite_c->update(sql);
+				if (!ret) {
+					loger.info() << sqlite_c->errmsg() << endl;
+					loger.info() << sql.getStr() << endl;
+				}
+				flag |= !ret;
+			}
+			if (flag) {
+				loger.warn() << "SQLite rollback in function fetchThisBotGroupMemberList." << endl;
+				sqlite_c->rollback();
+			}
+			else {
+				sqlite_c->commit();
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return -1;
 		}
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetGroupMemberList(unsigned int)." << endl;
+		loger.error() << "Exception in function fetchThisBotGroupMemberList." << endl;
 		return -1;
 	}
 }
-int QQBot::SetGroupMemberInfo(unsigned int group_id, unsigned int member_id) {
+int ThisBot::fetchThisBotGroupMemberInfo(unsigned int group_id, unsigned int member_id) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		unique_lock<mutex> auto_lock(QQ_lock_);
-		auto group_iter = FindQQGroup(group_id);
-		if (group_iter == QQBot_group_list_.end()) {
-			return 0;
-		};
-		if (!group_iter->GetGroupHasMember(member_id)) {
-			return 0;
-		}
-		auto member_iter = group_iter->FindMember(member_id);
-		string URL = "http://" + cqhttp_addr_ + "/get_group_member_info";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/get_group_member_info";
 		string data_buffer;
 		json post_data;
 		post_data["group_id"] = group_id;
 		post_data["user_id"] = member_id;
-		post_data["no_cache"] = !use_cache_;
-		if (SendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		post_data["no_cache"] = !m_cqhttp_use_cache;
+		if (sendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
-			member_iter->group_nickname_ = json_data["data"]["card"];
-			member_iter->group_title_ = json_data["data"]["title"];
-			string role = json_data["data"]["role"];
-			if (role == "member") {
-				member_iter->role_ = 0;
+			sqlite_c->transaction();
+			bool flag = false;
+			flag |= !sqlite_c->update("DELETE FROM group_member_list WHERE group_id=" 
+				+ to_string(group_id) 
+				+ " AND user_id="
+				+ to_string(member_id)
+				+ ";");
+			for (auto& element : json_data["data"]) {
+				SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,10,'%11',%12,%13,'%14',%15,%16);");
+				sql.args("%1", element["user_id"]);
+				sql.args("%2", element["group_id"]);
+				sql.args("%3", element["nickname"]);
+				sql.args("%4", element["age"]);
+				sql.args("%5", element["area"]);
+				sql.args("%6", element["sex"]);
+				sql.args("%7", element["card"]);
+				sql.args("%8", element["card_changeable"] == "false" ? "0" : "1");
+				sql.args("%9", element["join_time"]);
+				sql.args("%10", element["last_send_time"]);
+				sql.args("%11", element["level"]);
+				if (element["user_id"] == "member") {
+					sql.args("%12", "0");
+				}
+				else if (element["user_id"] == "admin") {
+					sql.args("%12", "1");
+				}
+				else if (element["user_id"] == "owner") {
+					sql.args("%12", "2");
+				}
+				sql.args("%13", element["shut_up_timestamp"]);
+				sql.args("%14", element["title"]);
+				sql.args("%15", element["title_expire_time"]);
+				sql.args("%16", element["unfriendly"] == "false" ? "0" : "1");
+				flag |= !sqlite_c->update(sql);
 			}
-			else if (role == "admin") {
-				member_iter->role_ = 1;
+			if (flag) {
+				loger.warn() << "SQLite rollback in function fetchThisBotGroupMemberInfo." << endl;
+				sqlite_c->rollback();
 			}
-			else if (role == "owner") {
-				member_iter->role_ = 2;
+			else {
+				sqlite_c->commit();
 			}
-			member_iter->age_ = json_data["data"]["age"];
-			member_iter->area_ = json_data["data"]["area"];
-			member_iter->join_time_ = json_data["data"]["join_time"];
-			member_iter->last_active_time_ = json_data["data"]["last_sent_time"];
-			member_iter->level_ = json_data["data"]["level"];
-			if (json_data["data"]["unfriendly"]) {
-				member_iter->unfriendly_ = true;
-			}
-			member_iter->title_expire_time_ = json_data["data"]["title_expire_time"];
-			member_iter->card_changeable_ = json_data["data"]["card_changeable"];
-			member_iter->shut_up_timestamp_ = json_data["data"]["shut_up_timestamp"];
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return -1;
 		}
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetBotBasicInfo()." << endl;
-		return -1;
-	}
-}
-int QQBot::ResetBotGroup(unsigned int group_id) {
-	try {
-		if (group_id == 0) return -1;
-		unique_lock<mutex> auto_lock(QQ_lock_);
-		auto iter = FindQQGroup(group_id);
-		if (iter == QQBot_group_list_.end()) {
-			return -1;
-		}
-		SetGroupInfo(*iter);
-		auto_lock.release();
-		QQ_lock_.unlock();
-		SetGroupMemberList(group_id);
-		for (auto& member : iter->group_member_list_) {
-			SetGroupMemberInfo(iter->id_, member.id_);
-		}
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function ResetBotGroup(unsigned int)." << endl;
+		loger.error() << "Exception in function fetchThisBotGroupMemberInfo." << endl;
 		return -1;
 	}
 }
 
-// 这些函数用以向go-cqhttp请求实现Bot的某些主动动作或获得一些信息
-int QQBot::SendPrivateMsg(const QQFriend& qfriend, QQMessage& msg) {
+// 【query】这些函数用以从go-cqhttp获取其他信息
+QQGroup ThisBot::queryGroupInfo(unsigned int group_id) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		if (!msg.CanSendToPrivate()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/send_private_msg";
-		json send_json;
-		send_json["user_id"] = qfriend.id_;
-		send_json["message"] = msg.GetMsg();
-		send_json["auto_escape"] = !msg.IsCQMsg();
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			msg.SetMsgID(json_data["data"]["message_id"]);
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return -1;
-		}
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SendPrivateMsg(const QQFriend&, QQMessage&)." << endl;
-		return -1;
-	}
-}
-int QQBot::SendGroupMsg(const QQGroup& group, QQMessage& msg) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		if (!msg.CanSendToGroup()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/send_group_msg";
-
-		json send_json;
-		send_json["group_id"] = group.id_;
-		send_json["message"] = msg.GetMsg();
-		send_json["auto_escape"] = !msg.IsCQMsg();
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			msg.SetMsgID(json_data["data"]["message_id"]);
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return -1;
-		}
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SendGroupMsg(const QQGroup&, QQMessage&)." << endl;
-		return -1;
-	}
-}
-int QQBot::DeleteFriend(const QQFriend& qfriend) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		unique_lock<mutex> auto_lock(QQ_lock_);
-		auto iter = FindQQFriend(qfriend.id_);
-		auto_lock.unlock();
-		if (iter == QQBot_friend_list_.end()) return 0;
-		Qlog.Info() << "Delete friend " << qfriend.name_ << "(" << qfriend.id_ << ")" << endl;
-		string URL = "http://" + cqhttp_addr_ + "/delete_friend";
-		json send_json;
-		send_json["user_id"] = qfriend.id_;
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		auto_lock.lock();
-		QQBot_friend_list_.erase(iter);
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function DeleteFriend(const QQFriend&)." << endl;
-		return -1;
-	}
-}
-int QQBot::DeleteUFriend(const QQUFriend& ufriend) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		unique_lock<mutex> auto_lock(QQ_lock_);
-		auto iter = FindQQUFriend(ufriend.id_);
-		auto_lock.unlock();
-		if (iter == QQBot_Ufriend_list_.end()) return 0;
-		Qlog.Info() << "Delete unidirectional friend " << ufriend.name_ << "(" << ufriend.id_ << ")" << endl;
-		string URL = "http://" + cqhttp_addr_ + "/delete_unidirectional_friend";
-		json send_json;
-		send_json["user_id"] = ufriend.id_;
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		auto_lock.lock();
-		QQBot_Ufriend_list_.erase(iter);
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function DeleteUFriend(const QQFriend&)." << endl;
-		return -1;
-	}
-}
-int QQBot::DeleteGroup(const QQGroup& group, bool dissolve) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		unique_lock<mutex> auto_lock(QQ_lock_);
-		auto iter = FindQQGroup(group.id_);
-		auto_lock.unlock();
-		if (iter == QQBot_group_list_.end()) return 0;
-		Qlog.Warn() << "leave group " << group.name_ << "(" << group.id_ << ")" << endl;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_leave";
-		json send_json;
-		send_json["group_id"] = group.id_;
-		send_json["is_dismiss"] = dissolve;
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		auto_lock.lock();
-		QQBot_group_list_.erase(iter);
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function DeleteGroup(const QQGroup&)." << endl;
-		return -1;
-	}
-}
-int QQBot::WithdrawMsg(int message_id) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/delete_msg";
-		json send_json;
-		send_json["message_id"] = message_id;
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function WithdrawMsg(int)." << endl;
-		return -1;
-	}
-}
-bool QQBot::CanSendImage() {
-	try {
-		if (cqhttp_addr_.empty()) return false;
-		string URL = "http://" + cqhttp_addr_ + "/can_send_image";
-		string data_buffer;
-		if (SendGETRequest(URL, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			return json_data["data"]["yes"];
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return false;
-		}
-		return true;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function CanSendImage()." << endl;
-		return false;
-	}
-}
-bool QQBot::CanSendRecord() {
-	try {
-		if (cqhttp_addr_.empty()) return false;
-		string URL = "http://" + cqhttp_addr_ + "/can_send_record";
-		string data_buffer;
-		if (SendGETRequest(URL, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			return json_data["data"]["yes"];
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return false;
-		}
-		return true;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function CanSendRecord()." << endl;
-		return false;
-	}
-}
-int QQBot::PrintCqhttpVersion() {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_version_info";
-		string data_buffer;
-		if (SendGETRequest(URL, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			string version = json_data["data"]["version"];
-			version.pop_back();
-			version.erase(0, 1);
-			Qlog.Info() << "Using go-cqhttp: " << version << endl;
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return -1;
-		}
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function PrintCqhttpVersion()." << endl;
-		return -1;
-	}
-}
-int QQBot::SetQQRrofile(const string& nickname, const string& company, const string& email, const string& college, const string& personal_note) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_qq_profile";
-		json send_json;
-		send_json["nickname"] = nickname;
-		send_json["company"] = company;
-		send_json["email"] = email;
-		send_json["college"] = college;
-		send_json["personal_note"] = personal_note;
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetQQRrofile(const string&, const string&, const string&, const string&, const string&)." << endl;
-		return -1;
-	}
-}
-QQUser QQBot::GetQQUserInfo(unsigned int QQid) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_stranger_info";
+		if (m_cqhttp_addr.empty()) return QQGroup(0);
+		string URL = "http://" + m_cqhttp_addr + "/get_group_info";
 		string data_buffer;
 		json post_data;
-		post_data["user_id"] = QQid;
-		post_data["no_cache"] = !use_cache_;
-		if (SendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		post_data["group_id"] = group_id;
+		post_data["no_cache"] = !m_cqhttp_use_cache;
+		if (sendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
-		QQUser user(QQid);
 		if (json_data["status"] == "ok") {
-			user.name_ = json_data["data"]["nickname"];
-			user.age_ = json_data["data"]["age"];
-			string gender = json_data["data"]["sex"];
-			if (gender == "unknown") user.gender_ = 0;
-			if (gender == "male") user.gender_ = 1;
-			if (gender == "female") user.gender_ = 2;
-			user.qid_ = json_data["data"]["qid"];
-			user.level_ = json_data["data"]["level"];
-			user.login_days_ = json_data["data"]["login_days"];
+			QQGroup g(group_id);
+			g.m_name = json_data["data"]["group_name"];
+			g.m_member_count = json_data["data"]["member_count"];
+			g.m_max_member_count = json_data["data"]["max_member_count"];
+			g.m_group_create_time = json_data["data"]["group_create_time"];
+			g.m_group_level = json_data["data"]["group_level"];
+			g.m_group_remark = json_data["data"]["group_memo"];
+			return g;
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return user;
+			return QQGroup(0);
 		}
-		return user;
+		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetQQUserInfo(unsigned int)." << endl;
-		return QQUser(QQid);
+		loger.error() << "Exception in function queryGroupInfo." << endl;
+		return QQGroup(0);
 	}
 }
-QQRawMessage QQBot::GetMessageInfo(int message_id) {
-	QQRawMessage msg;
+QQUser ThisBot::queryUserInfo(unsigned int user_id) {
 	try {
-		if (cqhttp_addr_.empty()) return msg;
-		string URL = "http://" + cqhttp_addr_ + "/get_msg";
+		if (m_cqhttp_addr.empty()) return QQUser(0);
+		string URL = "http://" + m_cqhttp_addr + "/get_stranger_info";
+		string data_buffer;
+		json post_data;
+		post_data["user_id"] = user_id;
+		post_data["no_cache"] = !m_cqhttp_use_cache;
+		if (sendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			QQUser user(user_id);
+			user.m_name = json_data["data"]["nickname"];
+			user.m_age = json_data["data"]["age"];
+			if (json_data["data"]["sex"] == "unknown") user.m_gender = 0;
+			else if (json_data["data"]["sex"] == "male") user.m_gender = 1;
+			else if (json_data["data"]["sex"] == "female") user.m_gender = 2;
+			user.m_qid = json_data["data"]["qid"];
+			user.m_level = json_data["data"]["level"];
+			user.m_login_days = json_data["data"]["login_days"];
+			return user;
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return QQUser(0);
+		}
+	}
+	catch (...) {
+		loger.error() << "Exception in function queryUserInfo." << endl;
+		return QQUser(0);
+	}
+}
+QQRawMessage ThisBot::queryMessageInfo(int message_id) {
+	try {
+		if (m_cqhttp_addr.empty()) return QQRawMessage();
+		string URL = "http://" + m_cqhttp_addr + "/get_msg";
 		string data_buffer;
 		json post_data;
 		post_data["message_id"] = message_id;
-		if (SendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return msg;
+		if (sendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return QQRawMessage();
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
-			msg.message_id_ = json_data["data"]["message_id"];
-			msg.is_group_msg = json_data["data"]["group"];
-			if (msg.is_group_msg) {
-				msg.group_id = json_data["data"]["group_id"];
+			QQRawMessage msg;
+			msg.m_message_id = json_data["data"]["message_id"];
+			msg.m_is_group_msg = json_data["data"]["group"];
+			if (msg.m_is_group_msg) {
+				msg.m_group_id = json_data["data"]["group_id"];
 			}
-			msg.real_id_ = json_data["data"]["real_id"];
-			msg.sender_id_ = json_data["data"]["sender"]["user_id"];
-			msg.sender_nickname_ = json_data["data"]["sender"]["nickname"];
-			msg.send_time_ = json_data["data"]["time"];
-			msg.message_ = json_data["data"]["message"];
-			msg.raw_message_ = json_data["data"]["raw_message"];
+			msg.m_real_id = json_data["data"]["real_id"];
+			msg.m_sender_id = json_data["data"]["sender"]["user_id"];
+			msg.m_sender_nickname = json_data["data"]["sender"]["nickname"];
+			msg.m_send_time = json_data["data"]["time"];
+			msg.m_message = json_data["data"]["message"];
+			msg.m_raw_message = json_data["data"]["raw_message"];
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return msg;
+			return QQRawMessage();
 		}
-		return msg;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetMessageInfo(int)." << endl;
-		return msg;
+		loger.error() << "Exception in function queryMessageInfo." << endl;
+		return QQRawMessage();
 	}
 }
-int QQBot::SetAddFriendRequest(const string& flag, const bool approve, const string& remark) {
+string ThisBot::queryCqhttpVersion() {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_friend_add_request";
+		if (m_cqhttp_addr.empty()) return string();
+		string URL = "http://" + m_cqhttp_addr + "/get_version_info";
 		string data_buffer;
-		json post_data;
-		post_data["flag"] = flag;
-		post_data["approve"] = approve;
-		if (approve) {
-			post_data["remark"] = remark;
-		}
-		if (SendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		if (sendGETRequest(URL, data_buffer) != 0) return string();
 		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			string version = json_data["data"]["version"];
+			return version;
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return string();
+		}
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetAddFriendRequest(const string&, const bool, const string&)." << endl;
-		return -1;
+		loger.error() << "Exception in function queryCqhttpVersion." << endl;
+		return string();
 	}
 }
-int QQBot::SetAddGroupRequest(const string& flag, const string& sub_type, const bool approve, const string& reason) {
+bool ThisBot::queryCanSendImage() {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_add_request";
+		if (m_cqhttp_addr.empty()) return false;
+		string URL = "http://" + m_cqhttp_addr + "/can_send_image";
 		string data_buffer;
-		json post_data;
-		post_data["flag"] = flag;
-		post_data["approve"] = approve;
-		post_data["sub_type"] = sub_type;
-		if (!approve) {
-			post_data["reason"] = reason;
-		}
-		if (SendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		if (sendGETRequest(URL, data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
-		return 0;
+		if (json_data["status"] == "ok") {
+			return json_data["data"]["yes"];
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return false;
+		}
+		return true;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetAddGroupRequest(const string&, const string&, const bool, const string&)." << endl;
-		return -1;
+		loger.error() << "Exception in function queryCanSendImage." << endl;
+		return false;
 	}
 }
-vector<pair<string, bool>> QQBot::GetDeviceShowList(const string& device_name) {
+bool ThisBot::queryCanSendRecord() {
+	try {
+		if (m_cqhttp_addr.empty()) return false;
+		string URL = "http://" + m_cqhttp_addr + "/can_send_record";
+		string data_buffer;
+		if (sendGETRequest(URL, data_buffer) != 0) return -1;
+		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			return json_data["data"]["yes"];
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return false;
+		}
+		return true;
+	}
+	catch (...) {
+		loger.error() << "Exception in function queryCanSendRecord." << endl;
+		return false;
+	}
+}
+vector<pair<string, bool>> ThisBot::queryDeviceShowList(const string& device_name) {
 	vector<pair<string, bool>> ret_set;
 	try {
-		if (cqhttp_addr_.empty()) return ret_set;
-		string URL = "http://" + cqhttp_addr_ + "/_get_model_show";
+		if (m_cqhttp_addr.empty()) return ret_set;
+		string URL = "http://" + m_cqhttp_addr + "/_get_model_show";
 		json send_json;
 		send_json["model"] = device_name;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return ret_set;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return ret_set;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			auto device_list = json_data["data"]["variants"];
@@ -804,223 +737,134 @@ vector<pair<string, bool>> QQBot::GetDeviceShowList(const string& device_name) {
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 		}
 		return ret_set;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetDeviceShowList(const string&)." << endl;
+		loger.error() << "Exception in function queryDeviceShowList." << endl;
 		return ret_set;
 	}
 }
-int QQBot::SetDeviceShowName(const string& device_name, const string& device_name_element) {
+vector<QQOnlineClient> ThisBot::queryOnlineClients() {
+	vector<QQOnlineClient> clients;
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/_set_model_show";
+		if (m_cqhttp_addr.empty()) return clients;
+		string URL = "http://" + m_cqhttp_addr + "/get_online_clients";
 		json send_json;
-		send_json["model"] = device_name;
-		send_json["model_show"] = device_name_element;
+		send_json["no_cache"] = !m_cqhttp_use_cache;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetDeviceShowName(const string&, const string&)." << endl;
-		return -1;
-	}
-	return 0;
-}
-vector<QQClient> QQBot::GetOnlineClients() {
-	vector<QQClient> clients;
-	try {
-		if (cqhttp_addr_.empty()) return clients;
-		string URL = "http://" + cqhttp_addr_ + "/get_online_clients";
-		json send_json;
-		send_json["no_cache"] = !use_cache_;
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return clients;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return clients;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			auto client_list = json_data["data"]["clients"];
 			for (auto& element : client_list) {
-				clients.push_back(QQClient(element["app_id"], element["device_name"], element["device_kind"]));
+				QQOnlineClient qqoc;
+				qqoc.m_app_id = element["app_id"];
+				qqoc.m_device_name = element["device_name"];
+				qqoc.m_device_kind = element["device_kind"];
+				clients.push_back(std::move(qqoc));
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return clients;
 		}
 		return clients;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetOnlineClients()." << endl;
+		loger.error() << "Exception in function queryOnlineClients." << endl;
 		return clients;
 	}
 }
-int QQBot::MarkMsgAsRead(int message_id) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/mark_msg_as_read";
-		json send_json;
-		send_json["message_id"] = message_id;
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function MarkMsgAsRead(int)." << endl;
-		return -1;
-	}
-}
-vector<QQForwardMsgNode> QQBot::GetForwardMsg(const string& forward_id) {
+vector<QQForwardMsgNode> ThisBot::queryForwardMsgContent(const string& forward_id) {
 	vector<QQForwardMsgNode> forward_msg_list;
 	try {
-		if (cqhttp_addr_.empty()) return forward_msg_list;
-		string URL = "http://" + cqhttp_addr_ + "/get_forward_msg";
+		if (m_cqhttp_addr.empty()) return forward_msg_list;
+		string URL = "http://" + m_cqhttp_addr + "/get_forward_msg";
 		json send_json;
 		send_json["message_id"] = forward_id;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return forward_msg_list;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return forward_msg_list;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			for (auto& element : json_data["data"]["messages"]) {
 				QQForwardMsgNode qfm;
-				qfm.sender_id_ = element["sender"]["user_id"];
-				qfm.sender_nickname_ = element["sender"]["nickname"];
-				qfm.message_ = element["content"];
-				qfm.send_time_ = element["time"];
-				forward_msg_list.push_back(qfm);
+				qfm.m_sender_id = element["sender"]["user_id"];
+				qfm.m_sender_nickname = element["sender"]["nickname"];
+				qfm.m_message = element["content"];
+				qfm.m_send_time = element["time"];
+				forward_msg_list.push_back(std::move(qfm));
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return forward_msg_list;
 		}
 		return forward_msg_list;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SendGroupMsg(const QQGroup&, QQMessage&)." << endl;
+		loger.error() << "Exception in function queryForwardMsgContent." << endl;
 		return forward_msg_list;
 	}
 }
-int QQBot::SendPrivateForwardMsg(const QQFriend& qfriend, QQMessage& msg) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		if (!msg.CanSendToPrivate()) return -1;
-		if (!msg.IsForwardMsg()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/send_private_forward_msg";
-		json send_json;
-		send_json["user_id"] = qfriend.id_;
-		send_json["message"] = msg.GetMsg();
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			msg.SetMsgID(json_data["data"]["message_id"]);
-			msg.SetForwardMsgID(json_data["data"]["forward_id"]);
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return -1;
-		}
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SendPrivateForwardMsg(const QQFriend&, QQMessage&)." << endl;
-		return -1;
-	}
-}
-int QQBot::SendGroupeForwardMsg(const QQGroup& group, QQMessage& msg) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		if (!msg.CanSendToGroup()) return -1;
-		if (!msg.IsForwardMsg()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/send_group_forward_msg";
-		json send_json;
-		send_json["group_id"] = group.id_;
-		send_json["message"] = msg.GetMsg();
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			msg.SetMsgID(json_data["data"]["message_id"]);
-			msg.SetForwardMsgID(json_data["data"]["forward_id"]);
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return -1;
-		}
-		return 0;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SendGroupeForwardMsg(const QQGroup&, QQMessage&)." << endl;
-		return -1;
-	}
-}
-vector<QQRawMessage> QQBot::GetGroupHistoryMsg(const QQGroup& group, unsigned int msg_seq) {
+vector<QQRawMessage> ThisBot::queryGroupHistoryMsg(unsigned int group_id, unsigned int msg_seq) {
 	vector<QQRawMessage> history_msg_list;
 	try {
-		if (cqhttp_addr_.empty()) return history_msg_list;
-		string URL = "http://" + cqhttp_addr_ + "/get_group_msg_history";
-
+		if (m_cqhttp_addr.empty()) return history_msg_list;
+		string URL = "http://" + m_cqhttp_addr + "/get_group_msg_history";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		if (msg_seq != 0) {
 			send_json["message_seq"] = msg_seq;
 		}
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return history_msg_list;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return history_msg_list;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			for (auto& element : json_data["data"]) {
 				QQRawMessage msg;
-				msg.message_id_ = element["message_id"];
-				msg.is_group_msg = element["group"];
-				if (msg.is_group_msg) {
-					msg.group_id = element["group_id"];
+				msg.m_message_id = element["message_id"];
+				msg.m_is_group_msg = element["group"];
+				if (msg.m_is_group_msg) {
+					msg.m_group_id = element["group_id"];
 				}
-				msg.real_id_ = element["real_id"];
-				msg.sender_id_ = element["sender"]["user_id"];
-				msg.sender_nickname_ = element["sender"]["nickname"];
-				msg.send_time_ = element["time"];
-				msg.message_ = element["message"];
-				msg.raw_message_ = element["raw_message"];
-				history_msg_list.push_back(msg);
+				msg.m_real_id = element["real_id"];
+				msg.m_sender_id = element["sender"]["user_id"];
+				msg.m_sender_nickname = element["sender"]["nickname"];
+				msg.m_send_time = element["time"];
+				msg.m_message = element["message"];
+				msg.m_raw_message = element["raw_message"];
+				history_msg_list.push_back(std::move(msg));
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return history_msg_list;
 		}
 		return history_msg_list;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetGroupHistoryMsg(const QQGroup&, unsigned int)." << endl;
+		loger.error() << "Exception in function queryGroupHistoryMsg." << endl;
 		return history_msg_list;
 	}
 }
-int QQBot::GetImageInfo(const string& file, int& size, string& filename, string& url) {
+int ThisBot::queryImageInfo(const string& file, int& size, string& filename, string& url) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_image";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/get_image";
 		json send_json;
 		send_json["file"] = file;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			size = json_data["data"]["size"];
@@ -1028,212 +872,212 @@ int QQBot::GetImageInfo(const string& file, int& size, string& filename, string&
 			url = json_data["data"]["url"];
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return -1;
 		}
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetImageInfo(const string&, int&, string&, string&)." << endl;
+		loger.error() << "Exception in function queryImageInfo." << endl;
 		return -1;
 	}
 }
-QQImageOCR QQBot::GetImageOCR(const string& image_id) {
+QQImageOCR ThisBot::queryImageOCR(const string& image_id) {
 	return QQImageOCR();
 }
-string QQBot::GetRecordInfo(const string& file, const string& out_format) {
+string ThisBot::queryRecordInfo(const string& file, const string& out_format) {
 	string file_addr;
 	try {
-		if (cqhttp_addr_.empty()) return file_addr;
-		string URL = "http://" + cqhttp_addr_ + "/get_record";
+		if (m_cqhttp_addr.empty()) return file_addr;
+		string URL = "http://" + m_cqhttp_addr + "/get_record";
 		json send_json;
 		send_json["file"] = file;
 		send_json["out_format"] = out_format;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return file_addr;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return file_addr;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			file_addr = json_data["data"]["file"];
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return file_addr;
 		}
 		return file_addr;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetImageOCR(const string&)." << endl;
+		loger.error() << "Exception in function queryRecordInfo." << endl;
 		return file_addr;
 	}
 }
-QQGroupHonor QQBot::GetGroupHonorInfo(const QQGroup& group, const string& type) {
+QQGroupHonor ThisBot::queryGroupHonorInfo(unsigned int group_id, const string& type) {
 	QQGroupHonor QGH;
 	try {
-		if (cqhttp_addr_.empty()) return QGH;
-		string URL = "http://" + cqhttp_addr_ + "/get_record";
+		if (m_cqhttp_addr.empty()) return QGH;
+		string URL = "http://" + m_cqhttp_addr + "/get_record";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		send_json["type"] = type;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return QGH;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return QGH;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
-			QGH.group_id_ = group.id_;
-			QGH.dragon_king_.user_id_ = json_data["data"]["current_talkative"]["user_id"];
-			QGH.dragon_king_.nickname_ = json_data["data"]["current_talkative"]["nickname"];
-			QGH.dragon_king_.header_url_ = json_data["data"]["current_talkative"]["avatar"];
-			QGH.dragon_king_.day_count_ = json_data["data"]["current_talkative"]["day_count"];
+			QGH.m_group_id = group_id;
+			QGH.m_dragon_king.m_user_id = json_data["data"]["current_talkative"]["user_id"];
+			QGH.m_dragon_king.m_nickname = json_data["data"]["current_talkative"]["nickname"];
+			QGH.m_dragon_king.m_header_url = json_data["data"]["current_talkative"]["avatar"];
+			QGH.m_dragon_king.m_day_count = json_data["data"]["current_talkative"]["day_count"];
 			for (auto& element : json_data["data"]["talkative_list"]) {
 				QQOtherHonor QOH;
-				QOH.user_id_ = element["user_id"];
-				QOH.nickname_ = element["nickname"];
-				QOH.header_url_ = element["avatar"];
-				QOH.description_ = element["description"];
-				QGH.history_dragon_king_.push_back(QOH);
+				QOH.m_user_id = element["user_id"];
+				QOH.m_nickname = element["nickname"];
+				QOH.m_header_url = element["avatar"];
+				QOH.m_description = element["description"];
+				QGH.m_history_dragon_king.push_back(std::move(QOH));
 			}
 			for (auto& element : json_data["data"]["performer_list"]) {
 				QQOtherHonor QOH;
-				QOH.user_id_ = element["user_id"];
-				QOH.nickname_ = element["nickname"];
-				QOH.header_url_ = element["avatar"];
-				QOH.description_ = element["description"];
-				QGH.chat_flame_.push_back(QOH);
+				QOH.m_user_id = element["user_id"];
+				QOH.m_nickname = element["nickname"];
+				QOH.m_header_url = element["avatar"];
+				QOH.m_description = element["description"];
+				QGH.m_chat_flame.push_back(std::move(QOH));
 			}
 			for (auto& element : json_data["data"]["legend_list"]) {
 				QQOtherHonor QOH;
-				QOH.user_id_ = element["user_id"];
-				QOH.nickname_ = element["nickname"];
-				QOH.header_url_ = element["avatar"];
-				QOH.description_ = element["description"];
-				QGH.chat_large_flame_.push_back(QOH);
+				QOH.m_user_id = element["user_id"];
+				QOH.m_nickname = element["nickname"];
+				QOH.m_header_url = element["avatar"];
+				QOH.m_description = element["description"];
+				QGH.m_chat_large_flame.push_back(std::move(QOH));
 			}
 			for (auto& element : json_data["data"]["strong_newbie_list"]) {
 				QQOtherHonor QOH;
-				QOH.user_id_ = element["user_id"];
-				QOH.nickname_ = element["nickname"];
-				QOH.header_url_ = element["avatar"];
-				QOH.description_ = element["description"];
-				QGH.bamboo_shoot_.push_back(QOH);
+				QOH.m_user_id = element["user_id"];
+				QOH.m_nickname = element["nickname"];
+				QOH.m_header_url = element["avatar"];
+				QOH.m_description = element["description"];
+				QGH.m_bamboo_shoot.push_back(std::move(QOH));
 			}
 			for (auto& element : json_data["data"]["emotion_list"]) {
 				QQOtherHonor QOH;
-				QOH.user_id_ = element["user_id"];
-				QOH.nickname_ = element["nickname"];
-				QOH.header_url_ = element["avatar"];
-				QOH.description_ = element["description"];
-				QGH.happy_sorce_.push_back(QOH);
+				QOH.m_user_id = element["user_id"];
+				QOH.m_nickname = element["nickname"];
+				QOH.m_header_url = element["avatar"];
+				QOH.m_description = element["description"];
+				QGH.m_happy_sorce.push_back(std::move(QOH));
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return QGH;
 		}
 		return QGH;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetGroupHonorInfo(const QQGroup&, const string&, string&)." << endl;
+		loger.error() << "Exception in function queryGroupHonorInfo." << endl;
 		return QGH;
 	}
 }
-QQGroupSystemMsg QQBot::GetGroupSystemMsg(const QQGroup& group) {
+QQGroupSystemMsg ThisBot::queryGroupSystemMsg(unsigned int group_id) {
 	QQGroupSystemMsg QGSM;
 	try {
-		if (cqhttp_addr_.empty()) return QGSM;
-		string URL = "http://" + cqhttp_addr_ + "/get_group_system_msg";
+		if (m_cqhttp_addr.empty()) return QGSM;
+		string URL = "http://" + m_cqhttp_addr + "/get_group_system_msg";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return QGSM;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return QGSM;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			for (auto& element : json_data["data"]["invited_requests"]) {
 				QQGroupInvitedRequest QGIR;
-				QGIR.request_id_ = element["request_id"];
-				QGIR.invitor_id_ = element["invitor_uin"];
-				QGIR.invitor_nickname_ = element["invitor_nick"];
-				QGIR.group_id_ = element["group_id"];
-				QGIR.group_name_ = element["group_name"];
-				QGIR.has_checked_ = element["checked"];
-				QGIR.operator_id_ = element["actor"];
-				QGSM.InvitedList.push_back(QGIR);
+				QGIR.m_request_id = element["request_id"];
+				QGIR.m_invitor_id = element["invitor_uin"];
+				QGIR.m_invitor_nickname = element["invitor_nick"];
+				QGIR.m_group_id = element["group_id"];
+				QGIR.m_group_name = element["group_name"];
+				QGIR.m_has_checked = element["checked"];
+				QGIR.m_operator_id = element["actor"];
+				QGSM.m_invitedList.push_back(std::move(QGIR));
 			}
 			for (auto& element : json_data["data"]["join_requests"]) {
 				QQGroupJoinRequest QGJR;
-				QGJR.request_id_ = element["request_id"];
-				QGJR.applicant_id_ = element["requester_uin"];
-				QGJR.applicant_nickname_ = element["requester_nick"];
-				QGJR.applicant_message_ = element["message"];
-				QGJR.group_id_ = element["group_id"];
-				QGJR.group_name_ = element["group_name"];
-				QGJR.has_checked_ = element["checked"];
-				QGJR.operator_id_ = element["actor"];
-				QGSM.JoinList.push_back(QGJR);
+				QGJR.m_request_id = element["request_id"];
+				QGJR.m_applicant_id = element["requester_uin"];
+				QGJR.m_applicant_nickname = element["requester_nick"];
+				QGJR.m_applicant_message = element["message"];
+				QGJR.m_group_id = element["group_id"];
+				QGJR.m_group_name = element["group_name"];
+				QGJR.m_has_checked = element["checked"];
+				QGJR.m_operator_id = element["actor"];
+				QGSM.m_joinList.push_back(std::move(QGJR));
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return QGSM;
 		}
 		return QGSM;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetGroupSystemMsg(const QQGroup&)." << endl;
+		loger.error() << "Exception in function queryGroupSystemMsg." << endl;
 		return QGSM;
 	}
 }
-vector<QQEssenceMsg> QQBot::GetGroupEssenceMsg(const QQGroup& group) {
+vector<QQEssenceMsg> ThisBot::queryGroupEssenceMsg(unsigned int group_id) {
 	vector<QQEssenceMsg> essence_msg_list;
 	try {
-		if (cqhttp_addr_.empty()) return essence_msg_list;
-		string URL = "http://" + cqhttp_addr_ + "/get_essence_msg_list";
+		if (m_cqhttp_addr.empty()) return essence_msg_list;
+		string URL = "http://" + m_cqhttp_addr + "/get_essence_msg_list";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return essence_msg_list;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return essence_msg_list;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			for (auto& element : json_data["data"]) {
 				QQEssenceMsg essence_msg;
-				essence_msg.sender_id_ = element["sender_id"];
-				essence_msg.sender_nickname_ = element["sender_nick"];
-				essence_msg.send_time_ = element["sender_time"];
-				essence_msg.operator_id_ = element["operator_id"];
-				essence_msg.operator_nickname_ = element["operator_nick"];
-				essence_msg.operator_settime_ = element["operator_time"];
-				essence_msg.message_id_ = element["message_id"];
-				essence_msg_list.push_back(essence_msg);
+				essence_msg.m_sender_id = element["sender_id"];
+				essence_msg.m_sender_nickname = element["sender_nick"];
+				essence_msg.m_send_time = element["sender_time"];
+				essence_msg.m_operator_id = element["operator_id"];
+				essence_msg.m_operator_nickname = element["operator_nick"];
+				essence_msg.m_operator_settime = element["operator_time"];
+				essence_msg.m_message_id = element["message_id"];
+				essence_msg_list.push_back(std::move(essence_msg));
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return essence_msg_list;
 		}
 		return essence_msg_list;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetGroupEssenceMsg(const QQGroup&)." << endl;
+		loger.error() << "Exception in function queryGroupEssenceMsg." << endl;
 		return essence_msg_list;
 	}
 }
-int QQBot::GetGroupAtAllChance(const QQGroup& group) {
+int ThisBot::queryGroupatAllChance(unsigned int group_id) {
 	int ret = 0;
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/get_essence_msg_list";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/get_essence_msg_list";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		json json_data = json::parse(data_buffer, NULL, false);
 		if (json_data["status"] == "ok") {
 			if (json_data["data"]["can_at_all"]) {
@@ -1244,133 +1088,499 @@ int QQBot::GetGroupAtAllChance(const QQGroup& group) {
 			}
 		}
 		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
 				<< json_data["msg"] << ":" << json_data["wording"] << endl;
 			return -1;
 		}
 		return ret;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetGroupEssenceMsg(const QQGroup&)." << endl;
+		loger.error() << "Exception in function queryGroupatAllChance." << endl;
 		return -1;
 	}
 }
-int QQBot::SetGroupName(const QQGroup& group, const string& name) {
+vector<QQGroupNotice> ThisBot::queryGroupNotice(unsigned int group_id) {
+	vector<QQGroupNotice> group_notice_list;
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_name";
+		if (m_cqhttp_addr.empty()) return group_notice_list;
+		string URL = "http://" + m_cqhttp_addr + "/_get_group_notice";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return group_notice_list;
+		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			for (auto& element : json_data["data"]) {
+				QQGroupNotice group_notice;
+				group_notice.m_sender_id = element["sender_id"];
+				group_notice.m_send_time = element["publish_time"];
+				group_notice.m_content = element["message"]["text"];
+				group_notice.m_image_id = element["message"]["images"]["id"];
+				group_notice_list.push_back(std::move(group_notice));
+			}
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return group_notice_list;
+		}
+		return group_notice_list;
+	}
+	catch (...) {
+		loger.error() << "Exception in function queryGroupNotice." << endl;
+		return group_notice_list;
+	}
+}
+
+// 【apply】这些函数用以向go-cqhttp请求实现Bot的某些主动动作
+int ThisBot::applySendPrivateMsg(unsigned int friend_id, QQMessage& msg) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		if (!msg.canSendToPrivate()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/send_private_msg";
+		json send_json;
+		send_json["user_id"] = friend_id;
+		send_json["message"] = msg.getMsg();
+		send_json["auto_escape"] = !msg.isCQMsg();
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			msg.setMsgID(json_data["data"]["message_id"]);
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return -1;
+		}
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applySendPrivateMsg." << endl;
+		return -1;
+	}
+}
+int ThisBot::applySendGroupMsg(unsigned int group_id, QQMessage& msg) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		if (!msg.canSendToGroup()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/send_group_msg";
+
+		json send_json;
+		send_json["group_id"] = group_id;
+		send_json["message"] = msg.getMsg();
+		send_json["auto_escape"] = !msg.isCQMsg();
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			msg.setMsgID(json_data["data"]["message_id"]);
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return -1;
+		}
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applySendGroupMsg." << endl;
+		return -1;
+	}
+}
+int ThisBot::applySendPrivateForwardMsg(unsigned int friend_id, QQMessage& msg) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		if (!msg.canSendToPrivate()) return -1;
+		if (!msg.isForwardMsg()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/send_private_forward_msg";
+		json send_json;
+		send_json["user_id"] = friend_id;
+		send_json["message"] = msg.getMsg();
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			msg.setMsgID(json_data["data"]["message_id"]);
+			msg.setForwardMsgID(json_data["data"]["forward_id"]);
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return -1;
+		}
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applySendPrivateForwardMsg." << endl;
+		return -1;
+	}
+}
+int ThisBot::applySendGroupeForwardMsg(unsigned int group_id, QQMessage& msg) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		if (!msg.canSendToGroup()) return -1;
+		if (!msg.isForwardMsg()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/send_group_forward_msg";
+		json send_json;
+		send_json["group_id"] = group_id;
+		send_json["message"] = msg.getMsg();
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		json json_data = json::parse(data_buffer, NULL, false);
+		if (json_data["status"] == "ok") {
+			msg.setMsgID(json_data["data"]["message_id"]);
+			msg.setForwardMsgID(json_data["data"]["forward_id"]);
+		}
+		else if (json_data["status"] == "failed") {
+			loger.warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
+				<< json_data["msg"] << ":" << json_data["wording"] << endl;
+			return -1;
+		}
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applySendGroupeForwardMsg." << endl;
+		return -1;
+	}
+}
+int ThisBot::applyRemoveFriend(unsigned int friend_id) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		QQFriend f = getThisBotFriend(friend_id);
+		if (!f.isNull()) {
+			loger.info() << "Delete friend " << f.m_name << "(" << f.m_id << ")" << endl;
+			sqlite_c->transaction();
+			if (sqlite_c->update("DELETE FROM friend_list WHERE user_id=" + to_string(friend_id) + ";")) {
+				loger.warn() << "SQLite rollback in function applyRemoveFriend." << endl;
+				sqlite_c->rollback();
+				return -1;
+			}
+			string URL = "http://" + m_cqhttp_addr + "/delete_friend";
+			json send_json;
+			send_json["user_id"] = friend_id;
+			string send_buffer = send_json.dump();
+			string data_buffer;
+			if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) {
+				loger.warn() << "SQLite rollback in function applyRemoveFriend." << endl;
+				sqlite_c->rollback();
+				return -1;
+			}
+			sqlite_c->commit();
+		}
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applyRemoveFriend." << endl;
+		return -1;
+	}
+}
+int ThisBot::applyRemoveUFriend(unsigned int ufriend_id) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		QQUFriend uf = getThisBotUFriend(ufriend_id);
+		if (!uf.isNull()) {
+			loger.info() << "Delete ufriend " << uf.m_name << "(" << uf.m_id << ")" << endl;
+			sqlite_c->transaction();
+			if (sqlite_c->update("DELETE FROM friend_list WHERE user_id=" + to_string(ufriend_id) + ";")) {
+				loger.warn() << "SQLite rollback in function applyRemoveUFriend." << endl;
+				sqlite_c->rollback();
+				return -1;
+			}
+			string URL = "http://" + m_cqhttp_addr + "/delete_unidirectional_friend";
+			json send_json;
+			send_json["user_id"] = ufriend_id;
+			string send_buffer = send_json.dump();
+			string data_buffer;
+			if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) {
+				loger.warn() << "SQLite rollback in function applyRemoveUFriend." << endl;
+				sqlite_c->rollback();
+				return -1;
+			}
+			sqlite_c->commit();
+		}
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applyRemoveUFriend." << endl;
+		return -1;
+	}
+}
+int ThisBot::applyRemoveGroup(unsigned int group_id, bool dissolve) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		QQGroup g = getThisBotGroup(group_id);
+		if (!g.isNull()) {
+			loger.info() << "Leave group " << g.m_name << "(" << g.m_id << ")" << endl;
+			sqlite_c->transaction();
+			if (sqlite_c->update("DELETE FROM group_list WHERE group_id=" + to_string(group_id) + ";")) {
+				loger.warn() << "SQLite rollback in function applyRemoveGroup." << endl;
+				sqlite_c->rollback();
+				return -1;
+			}
+			if (sqlite_c->update("DELETE FROM group_member_list WHERE group_id=" + to_string(group_id) + ";")) {
+				loger.warn() << "SQLite rollback in function applyRemoveGroup." << endl;
+				sqlite_c->rollback();
+				return -1;
+			}
+			string URL = "http://" + m_cqhttp_addr + "/set_group_leave";
+			json send_json;
+			send_json["group_id"] = group_id;
+			send_json["is_dismiss"] = dissolve;
+			string send_buffer = send_json.dump();
+			string data_buffer;
+			if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) {
+				loger.warn() << "SQLite rollback in function applyRemoveGroup." << endl;
+				sqlite_c->rollback();
+				return -1;
+			}
+			sqlite_c->commit();
+		}
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applyRemoveGroup." << endl;
+		return -1;
+	}
+}
+int ThisBot::applyWithdrawMsg(int message_id) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/delete_msg";
+		json send_json;
+		send_json["message_id"] = message_id;
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applyWithdrawMsg." << endl;
+		return -1;
+	}
+}
+int ThisBot::applySetThisBotProfile(const string& nickname, const string& company, const string& email, const string& college, const string& personal_note) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_qq_profile";
+		json send_json;
+		send_json["nickname"] = nickname;
+		send_json["company"] = company;
+		send_json["email"] = email;
+		send_json["college"] = college;
+		send_json["personal_note"] = personal_note;
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		else fetchThisBotBasicInfo();
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applySetThisBotProfile." << endl;
+		return -1;
+	}
+}
+int ThisBot::applyAddFriendRequest(const string& flag, const bool approve, const string& remark) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_friend_add_request";
+		string data_buffer;
+		json post_data;
+		post_data["flag"] = flag;
+		post_data["approve"] = approve;
+		if (approve) {
+			post_data["remark"] = remark;
+		}
+		if (sendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		else fetchThisBotFriendList();
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applyAddFriendRequest." << endl;
+		return -1;
+	}
+}
+int ThisBot::applyAddGroupRequest(const string& flag, const string& sub_type, const bool approve, const string& reason) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_add_request";
+		string data_buffer;
+		json post_data;
+		post_data["flag"] = flag;
+		post_data["approve"] = approve;
+		post_data["sub_type"] = sub_type;
+		if (!approve) {
+			post_data["reason"] = reason;
+		}
+		if (sendPOSTRequest(URL, post_data.dump(), data_buffer) != 0) return -1;
+		else fetchThisBotGroupList();
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applyAddGroupRequest." << endl;
+		return -1;
+	}
+}
+int ThisBot::applySetDeviceShowName(const string& device_name, const string& device_name_element) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/_set_model_show";
+		json send_json;
+		send_json["model"] = device_name;
+		send_json["model_show"] = device_name_element;
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applySetDeviceShowName." << endl;
+		return -1;
+	}
+	return 0;
+}
+int ThisBot::applyMarkMsgAsRead(int message_id) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/mark_msg_as_read";
+		json send_json;
+		send_json["message_id"] = message_id;
+		string send_buffer = send_json.dump();
+		string data_buffer;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		return 0;
+	}
+	catch (...) {
+		loger.error() << "Exception in function applyMarkMsgAsRead." << endl;
+		return -1;
+	}
+}
+int ThisBot::applySetGroupName(unsigned int group_id, const string& name) {
+	try {
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_name";
+		json send_json;
+		send_json["group_id"] = group_id;
 		send_json["group_name"] = name;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		else fetchThisBotGroupList();
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetGroupName(const QQGroup&, const string&)." << endl;
+		loger.error() << "Exception in function applySetGroupName." << endl;
 		return -1;
 	}
 }
-int QQBot::SetGroupHeader(const QQGroup& group, const string& URI, int type) {
+int ThisBot::applySetGroupHeader(unsigned int group_id, const string& URI, int type) {
 	return -1;
 }
-int QQBot::SetGroupAdmin(const QQGroup& group, const QQGroupMember& member, bool to_set) {
+int ThisBot::applySetGroupAdmin(unsigned int group_id, unsigned int member_id, bool to_set) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_admin";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_admin";
 		json send_json;
-		send_json["group_id"] = group.id_;
-		send_json["user_id"] = member.id_;
+		send_json["group_id"] = group_id;
+		send_json["user_id"] = member_id;
 		send_json["enable"] = to_set;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		else fetchThisBotGroupMemberInfo(group_id, member_id);
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetGroupAdmin(const QQGroup&, const QQGroupMember&, bool)." << endl;
+		loger.error() << "Exception in function applySetGroupAdmin." << endl;
 		return -1;
 	}
 }
-int QQBot::SetGroupMemberNickname(const QQGroup& group, const QQGroupMember& member, const string& nickname) {
+int ThisBot::applySetGroupMemberNickname(unsigned int group_id, unsigned int member_id, const string& nickname) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_card";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_card";
 		json send_json;
-		send_json["group_id"] = group.id_;
-		send_json["user_id"] = member.id_;
+		send_json["group_id"] = group_id;
+		send_json["user_id"] = member_id;
 		send_json["card"] = nickname;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		else fetchThisBotGroupMemberInfo(group_id, member_id);
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetGroupMemberNickname(const QQGroup&, const QQGroupMember&, const string&)." << endl;
+		loger.error() << "Exception in function applySetGroupMemberNickname." << endl;
 		return -1;
 	}
 }
-int QQBot::SetGroupMemberTitle(const QQGroup& group, const QQGroupMember& member, const string& title, int time) {
+int ThisBot::applySetGroupMemberTitle(unsigned int group_id, unsigned int member_id, const string& title, int time) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_special_title";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_special_title";
 		json send_json;
-		send_json["group_id"] = group.id_;
-		send_json["user_id"] = member.id_;
+		send_json["group_id"] = group_id;
+		send_json["user_id"] = member_id;
 		send_json["special_title"] = title;
 		send_json["duration"] = time;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		else fetchThisBotGroupMemberInfo(group_id, member_id);
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetGroupMemberTitle(const QQGroup&, const QQGroupMember&, const string&, int)." << endl;
+		loger.error() << "Exception in function applySetGroupMemberTitle." << endl;
 		return -1;
 	}
 }
-int QQBot::GroupMuteMember(const QQGroup& group, const QQGroupMember& member, unsigned int time) {
+int ThisBot::applyMuteGroupMember(unsigned int group_id, unsigned int member_id, unsigned int time) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_ban";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_ban";
 		json send_json;
-		send_json["group_id"] = group.id_;
-		send_json["user_id"] = member.id_;
+		send_json["group_id"] = group_id;
+		send_json["user_id"] = member_id;
 		send_json["duration"] = time;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		else fetchThisBotGroupMemberInfo(group_id, member_id);
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GroupMuteMember(const QQGroup&, const QQGroupMember&, unsigned int)." << endl;
+		loger.error() << "Exception in function applyMuteGroupMember." << endl;
 		return -1;
 	}
 }
-int QQBot::GroupMuteAll(const QQGroup& group, bool mute) {
+int ThisBot::applyMuteGroupAll(unsigned int group_id, bool mute) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_whole_ban";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_whole_ban";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		send_json["enable"] = mute;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GroupMuteAll(const QQGroup&, bool)." << endl;
+		loger.error() << "Exception in function applyMuteGroupAll." << endl;
 		return -1;
 	}
 }
-int QQBot::GroupMuteAnonymous(const QQGroup& group, const string& anonymous_json_object, const string& anonymous_flag, unsigned int time) {
+int ThisBot::applyMuteGroupAnonymous(unsigned int group_id, const string& anonymous_json_object, const string& anonymous_flag, unsigned int time) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_anonymous_ban";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_anonymous_ban";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		if (anonymous_json_object.empty() && anonymous_flag.empty()) return -1;
 		if (!anonymous_json_object.empty()) {
 			json json_object = json::parse(anonymous_json_object);
@@ -1382,136 +1592,103 @@ int QQBot::GroupMuteAnonymous(const QQGroup& group, const string& anonymous_json
 		send_json["duration "] = time;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GroupMuteAnonymous(const QQGroup&, const string&, const string&, unsigned int)." << endl;
+		loger.error() << "Exception in function applyMuteGroupAnonymous." << endl;
 		return -1;
 	}
 }
-int QQBot::SetEssenceMsg(int message_id) {
+int ThisBot::applySetGroupEssenceMsg(int message_id) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_essence_msg";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_essence_msg";
 		json send_json;
 		send_json["message_id"] = message_id;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SetEssenceMsg(int)." << endl;
+		loger.error() << "Exception in function applySetGroupEssenceMsg." << endl;
 		return -1;
 	}
 }
-int QQBot::RemoveEssenceMsg(int message_id) {
+int ThisBot::applyRemoveGroupEssenceMsg(int message_id) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/delete_essence_msg";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/delete_essence_msg";
 		json send_json;
 		send_json["message_id"] = message_id;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function RemoveEssenceMsg(int)." << endl;
+		loger.error() << "Exception in function applyRemoveGroupEssenceMsg." << endl;
 		return -1;
 	}
 }
-int QQBot::ClockInGroup(const QQGroup& group) {
+int ThisBot::applyClockInGroup(unsigned int group_id) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/send_group_sign";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/send_group_sign";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function ClockInGroup(const QQGroup&)." << endl;
+		loger.error() << "Exception in function applyClockInGroup." << endl;
 		return -1;
 	}
 }
-int QQBot::SendGroupNotice(const QQGroup& group, const string& content, const string& image_url) {
+int ThisBot::applySendGroupNotice(unsigned int group_id, const string& content, const string& image_url) {
 	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/_send_group_notice";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/_send_group_notice";
 		json send_json;
-		send_json["group_id"] = group.id_;
+		send_json["group_id"] = group_id;
 		send_json["content"] = content;
 		if (!image_url.empty()) {
 			send_json["image"] = image_url;
 		}
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SendGroupNotice(const QQGroup&, const string&, const string&)." << endl;
+		loger.error() << "Exception in function applySendGroupNotice." << endl;
 		return -1;
 	}
 }
-vector<QQGroupNotice> QQBot::GetGroupNotice(const QQGroup& group) {
-	vector<QQGroupNotice> group_notice_list;
+int ThisBot::applyKickGroupMember(unsigned int group_id, unsigned int member_id, bool allow_join_again) {
 	try {
-		if (cqhttp_addr_.empty()) return group_notice_list;
-		string URL = "http://" + cqhttp_addr_ + "/_get_group_notice";
+		if (m_cqhttp_addr.empty()) return -1;
+		string URL = "http://" + m_cqhttp_addr + "/set_group_kick";
 		json send_json;
-		send_json["group_id"] = group.id_;
-		string send_buffer = send_json.dump();
-		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return group_notice_list;
-		json json_data = json::parse(data_buffer, NULL, false);
-		if (json_data["status"] == "ok") {
-			for (auto& element : json_data["data"]) {
-				QQGroupNotice group_notice;
-				group_notice.sender_id_ = element["sender_id"];
-				group_notice.send_time_ = element["publish_time"];
-				group_notice.content_ = element["message"]["text"];
-				group_notice.image_id_ = element["message"]["images"]["id"];
-				group_notice_list.push_back(group_notice);
-			}
-		}
-		else if (json_data["status"] == "failed") {
-			Qlog.Warn() << "Failed to use go-cqhttp's API: " << URL << "    --->"
-				<< json_data["msg"] << ":" << json_data["wording"] << endl;
-			return group_notice_list;
-		}
-		return group_notice_list;
-	}
-	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GetGroupNotice(const QQGroup&)." << endl;
-		return group_notice_list;
-	}
-}
-int QQBot::GroupKickMember(const QQGroup& group, const QQGroupMember& member, bool allow_join_again) {
-	try {
-		if (cqhttp_addr_.empty()) return -1;
-		string URL = "http://" + cqhttp_addr_ + "/set_group_kick";
-		json send_json;
-		send_json["group_id"] = group.id_;
-		send_json["user_id"] = member.id_;
+		send_json["group_id"] = group_id;
+		send_json["user_id"] = member_id;
 		send_json["reject_add_request"] = !allow_join_again;
 		string send_buffer = send_json.dump();
 		string data_buffer;
-		if (SendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
+		if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) return -1;
 		return 0;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function GroupKickMember(const QQGroup&, const QQGroupMember&, bool)." << endl;
+		loger.error() << "Exception in function applyKickGroupMember." << endl;
 		return -1;
 	}
 }
 
-// 静态成员函数
-string QQBot::GetQQHeaderImageURL(unsigned int QQid) {
+// 静态公开成员函数
+string ThisBot::getQQHeaderImageURL(unsigned int QQid) {
 	// https://qlogo3.store.qq.com/qzone/(%QQID%)/(%QQID%)/640.jfif		//OK
 	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(%QQID%)&spec=640		//OK
 	// https://q1.qlogo.cn/g?b=qq&nk=(%QQID%)&s=640
@@ -1519,21 +1696,17 @@ string QQBot::GetQQHeaderImageURL(unsigned int QQid) {
 	return "https://q1.qlogo.cn/g?b=qq&nk=" + to_string(QQid) + "&s=640";
 }
 
-// 私有成员函数
-size_t curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
-	((string*)userdata)->append(ptr, size * nmemb);
-	return size * nmemb;
-}
-int QQBot::SendGETRequest(const string& URL, string& recv_buffer) {
+// 静态私有成员函数
+int ThisBot::sendGETRequest(const string& URL, string& recv_buffer) {
 	CURL* handle = curl_easy_init();
 	if (handle == nullptr) {
-		Qlog.Error() << "CURL init faild." << endl;
+		loger.error() << "CURL init faild." << endl;
 		return -1;
 	}
 	try {
-		if (!access_token_.empty()) {										// 消息报头
+		if (!m_cqhttp_access_token.empty()) {										// 消息报头
 			struct curl_slist* headers = NULL;
-			string token_header = "Authorization: Bearer " + access_token_;
+			string token_header = "Authorization: Bearer " + m_cqhttp_access_token;
 			headers = curl_slist_append(headers, token_header.c_str());
 			curl_easy_setopt(handle, CURLOPT_HTTPHEADER, headers);
 		}
@@ -1556,28 +1729,28 @@ int QQBot::SendGETRequest(const string& URL, string& recv_buffer) {
 					recv_buffer = reply_data;
 				}
 				else if (reply_code == 401) {
-					Qlog.Error() << "From go-cqhttp: Missing access token!" << endl;
+					loger.error() << "From go-cqhttp: Missing access token!" << endl;
 					break;
 				}
 				else if (reply_code == 402) {
-					Qlog.Error() << "From go-cqhttp: Wrong access token!" << endl;
+					loger.error() << "From go-cqhttp: Wrong access token!" << endl;
 					break;
 				}
 				else if (reply_code == 403) {
-					Qlog.Error() << "From go-cqhttp: Content-Type unsupport!" << endl;
+					loger.error() << "From go-cqhttp: Content-Type unsupport!" << endl;
 					break;
 				}
 				else if (reply_code == 404) {
-					Qlog.Error() << "From go-cqhttp: This API is not exist: " << URL << endl;
+					loger.error() << "From go-cqhttp: This API is not exist: " << URL << endl;
 					break;
 				}
 			}
 			else if (ret_code == CURLE_OPERATION_TIMEDOUT) {
-				Qlog.Warn() << "Waiting go-cqhttp time out!" << endl;
+				loger.warn() << "Waiting go-cqhttp time out!" << endl;
 				break;
 			}
 			else {
-				Qlog.Error() << "Failed to communicate with go-cqhttp. Curl return code: " << ret_code << endl;
+				loger.error() << "Failed to communicate with go-cqhttp. Curl return code: " << ret_code << endl;
 				break;
 			}
 			curl_easy_cleanup(handle);
@@ -1587,15 +1760,15 @@ int QQBot::SendGETRequest(const string& URL, string& recv_buffer) {
 		return -1;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SendGETRequest(const string&, string&)." << endl;
+		loger.error() << "Exception in function sendGETRequest." << endl;
 		curl_easy_cleanup(handle);
 		return -1;
 	}
 }
-int QQBot::SendPOSTRequest(const string& URL, const string& send_buffer, string& recv_buffer) {
+int ThisBot::sendPOSTRequest(const string& URL, const string& send_buffer, string& recv_buffer) {
 	CURL* handle = curl_easy_init();
 	if (handle == nullptr) {
-		Qlog.Warn() << "CURL init faild." << endl;
+		loger.warn() << "CURL init faild." << endl;
 		return -1;
 	}
 	try {
@@ -1604,8 +1777,8 @@ int QQBot::SendPOSTRequest(const string& URL, const string& send_buffer, string&
 		curl_easy_setopt(handle, CURLOPT_POSTFIELDS, send_buffer.c_str());
 		struct curl_slist* headers = NULL;									// 消息报头
 		headers = curl_slist_append(headers, "Content-Type: application/json,application/octet-stream");
-		if (!access_token_.empty()) {
-			string token_header = "Authorization: Bearer " + access_token_;
+		if (!m_cqhttp_access_token.empty()) {
+			string token_header = "Authorization: Bearer " + m_cqhttp_access_token;
 			headers = curl_slist_append(headers, token_header.c_str());
 		}
 		curl_easy_setopt(handle, CURLOPT_HTTPHEADER, headers);
@@ -1626,28 +1799,28 @@ int QQBot::SendPOSTRequest(const string& URL, const string& send_buffer, string&
 					recv_buffer = reply_data;
 				}
 				else if (reply_code == 401) {
-					Qlog.Error() << "From go-cqhttp: Missing access token!" << endl;
+					loger.error() << "From go-cqhttp: Missing access token!" << endl;
 					break;
 				}
 				else if (reply_code == 402) {
-					Qlog.Error() << "From go-cqhttp: Wrong access token!" << endl;
+					loger.error() << "From go-cqhttp: Wrong access token!" << endl;
 					break;
 				}
 				else if (reply_code == 403) {
-					Qlog.Error() << "From go-cqhttp: Content-Type unsupport!" << endl;
+					loger.error() << "From go-cqhttp: Content-Type unsupport!" << endl;
 					break;
 				}
 				else if (reply_code == 404) {
-					Qlog.Error() << "From go-cqhttp: This API is not exist: " << URL << endl;
+					loger.error() << "From go-cqhttp: This API is not exist: " << URL << endl;
 					break;
 				}
 			}
 			else if (ret_code == CURLE_OPERATION_TIMEDOUT) {
-				Qlog.Warn() << "Waiting go-cqhttp time out!" << endl;
+				loger.warn() << "Waiting go-cqhttp time out!" << endl;
 				break;
 			}
 			else {
-				Qlog.Error() << "Failed to communicate with go-cqhttp. Curl return code: " << ret_code << endl;
+				loger.error() << "Failed to communicate with go-cqhttp. Curl return code: " << ret_code << endl;
 				break;
 			}
 			curl_easy_cleanup(handle);
@@ -1657,29 +1830,8 @@ int QQBot::SendPOSTRequest(const string& URL, const string& send_buffer, string&
 		return -1;
 	}
 	catch (...) {
-		Qlog.Error() << "Exception in QQBot function SendPOSTRequest(const string&, const string&, string&)." << endl;
+		loger.error() << "Exception in function sendPOSTRequest." << endl;
 		curl_easy_cleanup(handle);
 		return -1;
 	}
-}
-vector<QQFriend>::iterator QQBot::FindQQFriend(unsigned int friend_id) {
-	vector<QQFriend>::iterator iter = QQBot_friend_list_.begin();
-	for (; iter != QQBot_friend_list_.end(); iter++) {
-		if (iter->id_ == friend_id) return iter;
-	}
-	return iter;
-}
-vector<QQUFriend>::iterator QQBot::FindQQUFriend(unsigned int ufriend_id) {
-	vector<QQUFriend>::iterator iter = QQBot_Ufriend_list_.begin();
-	for (; iter != QQBot_Ufriend_list_.end(); iter++) {
-		if (iter->id_ == ufriend_id) return iter;
-	}
-	return iter;
-}
-vector<QQGroup>::iterator QQBot::FindQQGroup(unsigned int group_id) {
-	vector<QQGroup>::iterator iter = QQBot_group_list_.begin();
-	for (; iter != QQBot_group_list_.end(); iter++) {
-		if (iter->id_ == group_id) return iter;
-	}
-	return iter;
 }

@@ -21,20 +21,23 @@ add_executable (QQBot.app
  "src/main.cpp"
  "src/ThreadPool/thread_pool.hpp"
  "src/ThreadPool/thread_pool.cpp"
- "src/json/json.hpp"
- "src/MainProcess.cpp"
- "src/Functions.cpp")
+ "src/main_process.cpp"
+ "src/functions.cpp")
 
  # 自建库
- add_library(QQBotLog SHARED  "src/QQBotLog/QQBotLog.cpp")
- add_library(QQ SHARED  "src/QQ/QQMessage.cpp"  "src/QQ/QQ.cpp")
+ add_library(loger SHARED  "src/Loger/loger.cpp")
+ add_library(QQ SHARED  "src/QQ/QQ_message.cpp"  "src/QQ/QQ.cpp" "src/sqlc/sqlite_client.cpp")
 
- # 外部库
-include_directories(${PROJECT_SOURCE_DIR}/src/include/libevent)
-include_directories(${PROJECT_SOURCE_DIR}/src/include/libcurl)
+ # 外部库头文件
+include_directories(${PROJECT_SOURCE_DIR}/include/json)
+include_directories(${PROJECT_SOURCE_DIR}/include/libevent)
+include_directories(${PROJECT_SOURCE_DIR}/include/libcurl)
+include_directories(${PROJECT_SOURCE_DIR}/include/libsqlite3)
 
 # 链接库
-target_link_libraries(QQBot.app QQBotLog)
+target_link_libraries(QQ "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libsqlite3/libsqlite3.so.0.8.6")
+
+target_link_libraries(QQBot.app loger)
 target_link_libraries(QQBot.app QQ)
 target_link_libraries(QQBot.app "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libcurl/libcurl.so")
 target_link_libraries(QQBot.app "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libevent/libevent-2.1.so.7")

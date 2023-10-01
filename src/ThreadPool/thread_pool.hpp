@@ -70,29 +70,29 @@ class WorkerThread {
 template<class F, class... Args>
 int ThreadPool::addTask(F func, Args... args) {
 	// 线程池还没开启的时候不可以添加任务
-	if (state_code != 1) return -1;
-	std::unique_lock<std::mutex> uniqueLock(task_queue_mutex);
-	if (block_task_when_full) {
+	if (m_state_code != 1) return -1;
+	std::unique_lock<std::mutex> uniqueLock(m_task_queue_mutex);
+	if (m_block_task_when_full) {
 		// 满的时候休眠
-		while (task_queue->size() >= max_task_num) {
+		while (m_task_queue->size() >= m_max_task_num) {
 			cond.wait(uniqueLock);
 			// 当被唤醒之后发现不允许添加任务立即返回
-			if (max_task_num == -1) {
+			if (m_max_task_num == -1) {
 				return -1;
 			}
 		}
 	}
 	else {
 		// 当不允许添加任务立即返回
-		if (max_task_num == -1) {
+		if (m_max_task_num == -1) {
 			return -1;
 		}
 		// 当max_task_num不为0并且任务数量抵达上限时返回-1
-		if (max_task_num != 0 && task_queue->size() >= max_task_num) {
+		if (m_max_task_num != 0 && m_task_queue->size() >= m_max_task_num) {
 			return -1;
 		}
 	}
-	task_queue->push(std::bind(func, args...));
+	m_task_queue->push(std::bind(func, args...));
 	cond.notify_all();
 	return 0;
 }
