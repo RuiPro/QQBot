@@ -87,9 +87,11 @@ public:
 	Loger(Loger&&) = delete;
 	Loger& operator=(const Loger& obj) = delete;
 
+	Pstring& debug();
 	Pstring& error();
 	Pstring& warn();
 	Pstring& info();
+	Pstring& pluginDebug(BasicPlugin* plg);
 	Pstring& pluginError(BasicPlugin* plg);
 	Pstring& pluginWarn(BasicPlugin* plg);
 	Pstring& pluginInfo(BasicPlugin* plg);
@@ -101,6 +103,7 @@ protected:
 	static string sm_error_tag;
 	static string sm_warn_tag;
 	static string sm_info_tag;
+	static string sm_debug_tag;
 };
 
 #define loger Loger()

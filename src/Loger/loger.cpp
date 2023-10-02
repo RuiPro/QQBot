@@ -4,6 +4,7 @@
 string Loger::sm_error_tag = " \033[31mError\033[0m]";
 string Loger::sm_warn_tag = " \033[33mWarn\033[0m] ";
 string Loger::sm_info_tag = " \033[34mInfo\033[0m] ";
+string Loger::sm_debug_tag = " \033[43;37mDebug\033[0m]";
 
 string getSystemTime() {
 	time_t now = time(nullptr);
@@ -52,6 +53,12 @@ Loger::~Loger() {
 		break;
 	}
 }
+Pstring& Loger::debug() {
+	m_to_print.append(getSystemTime());
+	m_to_print.append(sm_debug_tag);
+	m_stream_type = ostreamType::std_err;
+	return m_to_print;
+}
 Pstring& Loger::error() {
 	m_to_print.append(getSystemTime());
 	m_to_print.append(sm_error_tag);
@@ -68,6 +75,15 @@ Pstring& Loger::info() {
 	m_to_print.append(getSystemTime());
 	m_to_print.append(sm_info_tag);
 	m_stream_type = ostreamType::std_cout;
+	return m_to_print;
+}
+Pstring& Loger::pluginDebug(BasicPlugin* plg) {
+	m_to_print.append(getSystemTime());
+	m_to_print.append(sm_debug_tag);
+	m_to_print.append("[\033[36m");
+	m_to_print.append(plg->PluginName());
+	m_to_print.append("\033[0m] ");
+	m_stream_type = ostreamType::std_err;
 	return m_to_print;
 }
 Pstring& Loger::pluginError(BasicPlugin* plg) {
