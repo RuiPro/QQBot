@@ -50,53 +50,101 @@ struct SQLiteQueryResult {
 
 class SQL {
 public:
-	inline SQL() {}
-	inline explicit SQL(const string& str) : sql_str(str) {}
-	inline explicit SQL(const char* char_arr) : sql_str(char_arr) {}
-	inline explicit SQL(string&& str) : sql_str(std::move(str)) {}
-	SQL& operator= (const string& str) {
-		sql_str = str;
-		return *this;
-	}
-	SQL& operator= (const char* char_arr) {
-		sql_str = char_arr;
-		return *this;
-	}
-	string getStr() const {
-		return sql_str;
-	}
-	// 代替语句中的占位符source->target，target中不能出现source
-	// transfer：是否使用转义，将SQL语句中的'转义成''
-	void args(const string& source, const string& target, bool transfer = true) {
-		if (target.find(source) != target.npos) return;
-		string target_edit;
-		if (transfer) {
-			for (auto& element : target) {
-				if (element == '\'') {
-					target_edit.push_back('\'');
-				}
-				target_edit.push_back(element);
-			}
-		}
-		else {
-			target_edit = std::move(target);
-		}
-		auto pos = sql_str.find(source);
-		while (pos != sql_str.npos) {
-			sql_str.replace(pos, source.size(), target_edit);
-			pos = sql_str.find(source);
-		}
-	}
-	void args(const string& source, json& json_object) {
-		if (json_object.is_number()) {
-			return args(source, to_string(json_object));
-		}
-		if (json_object.is_string()) {
-			return args(source, string(json_object));
-		}
-	}
+    inline SQL() {
+        m_arg_set = new string[50];
+    }
+
+    inline explicit SQL(const string& str) : m_sql_str(str) {
+        m_arg_set = new string[50];
+    }
+
+    inline explicit SQL(const char* char_arr) : m_sql_str(char_arr) {
+        m_arg_set = new string[50];
+    }
+
+    inline explicit SQL(string&& str) : m_sql_str(std::move(str)) {
+        m_arg_set = new string[50];
+    }
+
+    ~SQL() {
+        delete[] m_arg_set;
+    }
+
+    SQL& operator=(const string& str) {
+        m_sql_str = str;
+        return *this;
+    }
+
+    SQL& operator=(const char* char_arr) {
+        m_sql_str = char_arr;
+        return *this;
+    }
+
+    string getStr() const {
+        string ret;
+        for (int i = 0; i < m_sql_str.size(); ++i) {
+            if (m_sql_str[i] != '%') {
+                ret.push_back(m_sql_str[i]);
+                continue;
+            }
+            // 取出%后面的两个数字
+            int number1 = -1, number2 = -1;
+            // 第一位必须为1~9
+            if (m_sql_str[i + 1] > 48 && m_sql_str[i + 1] < 58) {
+                number1 = m_sql_str[i + 1] - 48;
+            }
+            else {
+                ret.push_back(m_sql_str[i]);
+                continue;
+            }
+            // 第二位
+            if (m_sql_str[i + 2] >= 48 && m_sql_str[i + 2] < 58) {
+                number2 = m_sql_str[i + 2] - 48;
+            }
+            // 取值
+            // 如果两位数都合法且已经确定了参数
+            if (number2 != -1 && (number1 * 10 + number2 - 1) < 50 && !m_arg_set[number1 * 10 + number2 - 1].empty()) {
+                ret.append(m_arg_set[number1 * 10 + number2 - 1]);
+                i += 2;
+            }
+            // 如果只有第一位数合法且已经确定了参数
+            else if (number1 != -1 && !m_arg_set[number1 - 1].empty()) {
+                ret.append(m_arg_set[number1 - 1]);
+                i += 1;
+            }
+            else {
+                ret.push_back(m_sql_str[i]);
+                continue;
+            }
+        }
+        return ret;
+    }
+    // 代替语句中的占位符source->target
+    // transfer：是否使用转义，将SQL语句中的'转义成''
+    void args(int index, const string& target, bool transfer = true) {
+        if (index <= 0 || index > 50) return;
+        string target_edit;
+        if (transfer) {
+            for (auto& element : target) {
+                if (element == '\'') {
+                    m_arg_set[index - 1].push_back('\'');
+                }
+                m_arg_set[index - 1].push_back(element);
+            }
+        }
+        else {
+            m_arg_set[index - 1] = std::move(target);
+        }
+    }
+    void args(int index, json json_object, bool transfer = true) {
+        args(index, json_object.dump(), transfer);
+    }
+    void args(int index, const char* str_arr, bool transfer = true) {
+        args(index, string(str_arr), transfer);
+    }
 private:
-	string sql_str;
+    string m_sql_str;
+    string* m_arg_set;
 };
 
 class SQLiteClient {

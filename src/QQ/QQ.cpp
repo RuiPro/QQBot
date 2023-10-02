@@ -300,9 +300,9 @@ int ThisBot::fetchThisBotFriendList() {
 			flag |= !sqlite_c->update("DELETE FROM friend_list;");
 			for (auto& element : json_data["data"]) {
 				SQL sql("INSERT INTO friend_list VALUES (%1,'%2','%3');");
-				sql.args("%1", element["user_id"]);
-				sql.args("%2", element["nickname"]);
-				sql.args("%3", element["remark"]);
+				sql.args(1, element["user_id"]);
+				sql.args(2, element["nickname"]);
+				sql.args(3, element["remark"]);
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
@@ -341,9 +341,9 @@ int ThisBot::fetchThisBotUFriendList() {
 			flag |= !sqlite_c->update("DELETE FROM ufriend_list;");
 			for (auto& element : json_data["data"]) {
 				SQL sql("INSERT INTO ufriend_list VALUES (%1,'%2','%3');");
-				sql.args("%1", element["user_id"]);
-				sql.args("%2", element["nickname"]);
-				sql.args("%3", element["source"]);
+				sql.args(1, element["user_id"]);
+				sql.args(2, element["nickname"]);
+				sql.args(3, element["source"]);
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
@@ -380,13 +380,13 @@ int ThisBot::fetchThisBotGroupList() {
 			flag |= !sqlite_c->update("DELETE FROM group_member_list;");
 			for (auto& element : json_data["data"]) {
 				SQL sql("INSERT INTO group_list VALUES (%1,'%2',%3,%4,%5,%6,'%7');");
-				sql.args("%1", element["group_id"]);
-				sql.args("%2", element["group_name"]);
-				sql.args("%3", element["member_count"]);
-				sql.args("%4", element["max_member_count"]);
-				sql.args("%5", element["group_create_time"]);
-				sql.args("%6", element["group_level"]);
-				sql.args("%7", element["group_memo"]);
+				sql.args(1, element["group_id"]);
+				sql.args(2, element["group_name"]);
+				sql.args(3, element["member_count"]);
+				sql.args(4, element["max_member_count"]);
+				sql.args(5, element["group_create_time"]);
+				sql.args(6, element["group_level"]);
+				sql.args(7, element["group_memo"]);
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
@@ -424,45 +424,40 @@ int ThisBot::fetchThisBotGroupMemberList(unsigned int group_id) {
 			bool flag = false;
 			flag |= !sqlite_c->update("DELETE FROM group_member_list WHERE group_id=" + to_string(group_id) + ";");
 			for (auto& element : json_data["data"]) {
-				SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,%x0,'%x1',%x2,%x3,'%x4',%x5,%x6);");
-				sql.args("%1", element["user_id"]);
-				sql.args("%2", element["group_id"]);
-				sql.args("%3", element["nickname"]);
-				sql.args("%4", element["age"]);
-				sql.args("%5", element["area"]);
+				SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,%10,'%11',%12,%13,'%14',15,%16);");
+				sql.args(1, element["user_id"]);
+				sql.args(2, element["group_id"]);
+				sql.args(3, element["nickname"]);
+				sql.args(4, element["age"]);
+				sql.args(5, element["area"]);
 				if (element["sex"] == "unknown") {
-					sql.args("%6", "0");
+					sql.args(6, "0");
 				}
 				else if (element["sex"] == "male") {
-					sql.args("%6", "1");
+					sql.args(6, "1");
 				}
 				else if (element["sex"] == "female") {
-					sql.args("%6", "2");
+					sql.args(6, "2");
 				}
-				sql.args("%7", element["card"]);
-				sql.args("%8", element["card_changeable"] == "false" ? "0" : "1");
-				sql.args("%9", element["join_time"]);
-				sql.args("%x0", element["last_sent_time"]);
-				sql.args("%x1", element["level"]);
+				sql.args(7, element["card"]);
+				sql.args(8, element["card_changeable"] == "false" ? "0" : "1");
+				sql.args(9, element["join_time"]);
+				sql.args(10, element["last_sent_time"]);
+				sql.args(11, element["level"]);
 				if (element["role"] == "member") {
-					sql.args("%x2", "0");
+					sql.args(12, "0");
 				}
 				else if (element["role"] == "admin") {
-					sql.args("%x2", "1");
+					sql.args(12, "1");
 				}
 				else if (element["role"] == "owner") {
-					sql.args("%x2", "2");
+					sql.args(12, "2");
 				}
-				sql.args("%x3", element["shut_up_timestamp"]);
-				sql.args("%x4", element["title"]);
-				sql.args("%x5", element["title_expire_time"]);
-				sql.args("%x6", element["unfriendly"] ? "1" : "0");
-				bool ret = sqlite_c->update(sql);
-				if (!ret) {
-					loger.info() << sqlite_c->errmsg();
-					loger.info() << sql.getStr();
-				}
-				flag |= !ret;
+				sql.args(13, element["shut_up_timestamp"]);
+				sql.args(14, element["title"]);
+				sql.args(15, element["title_expire_time"]);
+				sql.args(16, element["unfriendly"] ? "1" : "0");
+				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
 				loger.warn() << "SQLite rollback in function fetchThisBotGroupMemberList.";
@@ -505,30 +500,30 @@ int ThisBot::fetchThisBotGroupMemberInfo(unsigned int group_id, unsigned int mem
 				+ ";");
 			for (auto& element : json_data["data"]) {
 				SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,10,'%11',%12,%13,'%14',%15,%16);");
-				sql.args("%1", element["user_id"]);
-				sql.args("%2", element["group_id"]);
-				sql.args("%3", element["nickname"]);
-				sql.args("%4", element["age"]);
-				sql.args("%5", element["area"]);
-				sql.args("%6", element["sex"]);
-				sql.args("%7", element["card"]);
-				sql.args("%8", element["card_changeable"] == "false" ? "0" : "1");
-				sql.args("%9", element["join_time"]);
-				sql.args("%10", element["last_send_time"]);
-				sql.args("%11", element["level"]);
+				sql.args(1, element["user_id"]);
+				sql.args(2, element["group_id"]);
+				sql.args(3, element["nickname"]);
+				sql.args(4, element["age"]);
+				sql.args(5, element["area"]);
+				sql.args(6, element["sex"]);
+				sql.args(7, element["card"]);
+				sql.args(8, element["card_changeable"] == "false" ? "0" : "1");
+				sql.args(9, element["join_time"]);
+				sql.args(10, element["last_send_time"]);
+				sql.args(11, element["level"]);
 				if (element["user_id"] == "member") {
-					sql.args("%12", "0");
+					sql.args(12, "0");
 				}
 				else if (element["user_id"] == "admin") {
-					sql.args("%12", "1");
+					sql.args(12, "1");
 				}
 				else if (element["user_id"] == "owner") {
-					sql.args("%12", "2");
+					sql.args(12, "2");
 				}
-				sql.args("%13", element["shut_up_timestamp"]);
-				sql.args("%14", element["title"]);
-				sql.args("%15", element["title_expire_time"]);
-				sql.args("%16", element["unfriendly"] == "false" ? "0" : "1");
+				sql.args(13, element["shut_up_timestamp"]);
+				sql.args(14, element["title"]);
+				sql.args(15, element["title_expire_time"]);
+				sql.args(16, element["unfriendly"] == "false" ? "0" : "1");
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
