@@ -42,9 +42,9 @@ MainProcess::MainProcess(int argc, char** argv) {
 	// 实例化Bot对象
 	createBot(m_cqhttp_addr, m_access_token, m_use_cache);
 	// 获取Cqhttp和Bot对象的信息并输出
-	loger.info() << "Using go-cqhttp version: " << QQBot.queryCqhttpVersion() << endl;
+	loger.info() << "Using go-cqhttp version: " << QQBot.queryCqhttpVersion();
 	if (QQBot.fetchThisBotBasicInfo() != 0) exit(0);
-	loger.info() << "ThisBot has logged in with " << QQBot.getThisBotNickname() << "(" << QQBot.getThisBotID() << ")" << endl;
+	loger.info() << "ThisBot has logged in with " << QQBot.getThisBotNickname() << "(" << QQBot.getThisBotID() << ")";
 	if (QQBot.fetchThisBotFriendList() != 0) exit(0);
 	QQBot.printFriendList();
 	if (QQBot.fetchThisBotUFriendList() != 0) exit(0);
@@ -58,7 +58,7 @@ MainProcess::MainProcess(int argc, char** argv) {
 	// 加载插件
 	if (loadDir(m_app_path + "plugins/") != 0) exit(0);
 	if (loadPlugins() != 0) exit(0);
-	loger.info() << "Load plugins: " << m_plugins_list->size() << endl;
+	loger.info() << "Load plugins: " << m_plugins_list->size();
 }
 
 MainProcess::~MainProcess() {
@@ -105,7 +105,7 @@ string MainProcess::getPath() {
 	if (argv0[0] == '.' && argv0[1] == '/') {       // 如果程序位置在当前路径下的子路径
 		char path[1024]{ 0 };
 		if (getcwd(path, 1024) == nullptr) {        // 程序路径 = 当前工作路径 拼接 程序执行路径
-			loger.error() << "Failed to get app path!" << endl;
+			loger.error() << "Failed to get app path!";
 			return env_path;
 		}
 		env_path = path;
@@ -115,7 +115,7 @@ string MainProcess::getPath() {
 		char path1[1024]{ 0 };
 		char path2[1024]{ 0 };
 		if (getcwd(path1, 1023) == nullptr) {       // 程序路径 = 求绝对路径(当前工作路径 拼接 程序执行路径)
-			loger.error() << "Failed to get app path!" << endl;
+			loger.error() << "Failed to get app path!";
 			return env_path;
 		}
 		env_path = path1;
@@ -139,11 +139,11 @@ int MainProcess::configFileInit() {
 	ifstream f;
 	f.open(config_path);
 	if (!f.is_open()) {
-		loger.info() << "File config.json does not exist, creating..." << endl;
+		loger.info() << "File config.json does not exist, creating...";
 		ofstream new_file;
 		new_file.open(config_path, ios::out | ios::app);
 		if (!new_file.is_open()) {
-			loger.error() << "File config.json filed to create!" << endl;
+			loger.error() << "File config.json filed to create!";
 			exit(0);
 		}
 		new_file << R"({
@@ -166,7 +166,7 @@ int MainProcess::configFileInit() {
 }
 		)";
 		new_file.close();
-		loger.info() << "File config.json created successfully." << endl;
+		loger.info() << "File config.json created successfully.";
 	}
 	f.close();
 	return 0;
@@ -176,14 +176,14 @@ int MainProcess::analysisConfig() {
 	string config_path = m_app_path + "config.json";
 	ifstream config_file(config_path);
 	if (!config_file.is_open()) {
-		loger.error() << "Failed to open file config.json." << endl;
+		loger.error() << "Failed to open file config.json.";
 		exit(0);
 	}
 	try {
 		json config;
 		config_file >> config;
 		if (!config.is_object()) {
-			loger.error() << "Cann't get json from config.json." << endl;
+			loger.error() << "Cann't get json from config.json.";
 			exit(0);
 		}
 		if (config.find("TPS") == config.end() ||
@@ -199,8 +199,8 @@ int MainProcess::analysisConfig() {
 			config.find("CorePlugin") == config.end() ||
 			config["CorePlugin"].find("auto_add_friend") == config["CorePlugin"].end() ||
 			config["CorePlugin"].find("auto_join_group") == config["CorePlugin"].end()) {
-			loger.error() << "Required value not found in config.json" << endl;
-			loger.error() << "You may be able to delete config.json and reconfigure it." << endl;
+			loger.error() << "Required value not found in config.json";
+			loger.error() << "You may be able to delete config.json and reconfigure it.";
 			return -1;
 		}
 		m_TPS = config["TPS"];
@@ -216,7 +216,7 @@ int MainProcess::analysisConfig() {
 		m_auto_join_group = config["CorePlugin"]["auto_join_group"];
 		if (m_TPS <= 0 || cqhttp_IP.empty() || cqhttp_port == 0 || m_bind_port == 0 || m_thread_pool_max_thread_num < 0 ||
 			m_thread_pool_max_task_num <= 0 || m_thread_pool_adjust_range <= 0 || m_thread_pool_manager_interval < 0) {
-			loger.error() << "Invalid config value found! Please check the config.json." << endl;
+			loger.error() << "Invalid config value found! Please check the config.json.";
 			exit(0);
 		}
 		m_cqhttp_addr = cqhttp_IP + ":" + to_string(cqhttp_port);
@@ -237,7 +237,7 @@ int MainProcess::analysisConfig() {
 		return 0;
 	}
 	catch (const exception& e) {
-		loger.error() << "Failed to analysis config json:" << e.what() << endl;
+		loger.error() << "Failed to analysis config json:" << e.what();
 		return -1;
 	}
 }
@@ -268,7 +268,7 @@ int MainProcess::loadPlugins() {
 	string plugins_dir_path = m_app_path + "plugins/";
 	DIR* dir = opendir(plugins_dir_path.c_str());
 	if (dir == nullptr) {
-		loger.error() << "Faild to open diretory: " << plugins_dir_path << endl;
+		loger.error() << "Faild to open diretory: " << plugins_dir_path;
 		return -1;
 	}
 	dirent* file;
@@ -279,14 +279,14 @@ int MainProcess::loadPlugins() {
 			if (file_name.length() <= 4 || file_name.substr(file_name.length() - suffix.length()) != suffix) continue;
 			LoadedPlugin* load_plugin = new LoadedPlugin(plugins_dir_path + file_name, QQBotPtr, m_app_path);
 			if (!load_plugin->isGood()) {
-				loger.warn() << "Plugin " << file_name << " faild to load: bad plugin." << endl;
+				loger.warn() << "Plugin " << file_name << " faild to load: bad plugin.";
 				delete load_plugin;
 				continue;
 			}
 			loger.info() << "Loading plugin " << load_plugin->GetName() << " " << load_plugin->GetVersion() << "...\n";
 			// 加载插件后，为插件创建一个插件专用的目录
 			if (loadDir(plugins_dir_path + load_plugin->GetName() + "/") != 0) {
-				loger.warn() << "Faild to create diretory for plugin: " << load_plugin->GetName() << endl;
+				loger.warn() << "Faild to create diretory for plugin: " << load_plugin->GetName();
 				delete load_plugin;
 				continue;
 			}
@@ -305,23 +305,23 @@ int MainProcess::loadDir(const string& dir_path) {
 	if (stat(dir_path.c_str(), &plugins_dir_info) != 0) {
 		if (errno == ENOENT) {
 			if (mkdir(dir_path.c_str(), 0755) != 0) {
-				loger.error() << "Failed to create diretory: " << dir_path << endl;
+				loger.error() << "Failed to create diretory: " << dir_path;
 				return -1;
 			}
 			return 0;
 		}
 		else {
-			loger.error() << "Failed to check plugins diretory. Error code: " << errno << endl;
+			loger.error() << "Failed to check plugins diretory. Error code: " << errno;
 			return -1;
 		}
 	}
 	// 如果存在，判断是否可读
 	if ((plugins_dir_info.st_mode & S_IFDIR) == 0) {
-		loger.error() << dir_path << " is not a diretory." << endl;
+		loger.error() << dir_path << " is not a diretory.";
 		return -1;
 	}
 	if (access(dir_path.c_str(), F_OK | R_OK | X_OK) != 0) {
-		loger.error() << "Unable to access " << dir_path << ", folder does not exist or permission deny." << endl;
+		loger.error() << "Unable to access " << dir_path << ", folder does not exist or permission deny.";
 		return -1;
 	}
 	return 0;

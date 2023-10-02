@@ -16,20 +16,20 @@ public:
 	LoadedPlugin(const string& plugin_path, ThisBot* bot, const string& app_path) {
 		m_handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
 		if (m_handle == nullptr) {
-			loger.error() << "Open plugin failed: " << dlerror() << endl;
+			loger.error() << "Open plugin failed: " << dlerror();
 			m_plugin_status = Bad_Plugin;
 			return;
 		}
 		*(void**)(&m_loadPlugin) = dlsym(m_handle, "loadPlugin");
 		if (m_loadPlugin == nullptr) {
-			loger.error() << "Get load plugin function failed: " << dlerror() << endl;
+			loger.error() << "Get load plugin function failed: " << dlerror();
 			dlclose(m_handle);
 			m_plugin_status = Bad_Plugin;
 			return;
 		}
 		*(void**)(&m_destroyPlugin) = dlsym(m_handle, "destroyPlugin");
 		if (m_destroyPlugin == nullptr) {
-			loger.error() << "Get destroy plugin function failed: " << dlerror() << endl;
+			loger.error() << "Get destroy plugin function failed: " << dlerror();
 			dlclose(m_handle);
 			m_plugin_status = Bad_Plugin;
 			return;
