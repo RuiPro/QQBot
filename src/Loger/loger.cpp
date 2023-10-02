@@ -1,6 +1,10 @@
 #include "loger.h"
 #include "../base_plugin.h"
 
+string Loger::sm_error_tag = " \033[31mError\033[0m]";
+string Loger::sm_warn_tag = " \033[33mWarn\033[0m] ";
+string Loger::sm_info_tag = " \033[34mInfo\033[0m] ";
+
 string getSystemTime() {
 	time_t now = time(nullptr);
 	tm* local_time = localtime(&now);
@@ -34,58 +38,62 @@ string getSystemTime() {
 	return now_time;
 }
 
-Loger* Loger::m_log = new Loger;
+mutex Loger::sm_lock;
 
-ostream& Loger::error() const {
-	string output_str = getSystemTime();
-	output_str.append(m_error_tag);
-	cout << output_str;
-	return cout;
+Loger::Loger() {}
+Loger::~Loger() {
+	unique_lock<mutex> locker(Loger::sm_lock);
+	switch (m_stream_type) {
+	case std_err:
+		cerr << m_to_print << endl;
+		break;
+	case std_cout:
+		cout << m_to_print << endl;
+		break;
+	}
 }
-ostream& Loger::warn() const {
-	string output_str = getSystemTime();
-	output_str.append(m_warn_tag);
-	cout << output_str;
-	return cout;
+Pstring& Loger::error() {
+	m_to_print.append(getSystemTime());
+	m_to_print.append(sm_error_tag);
+	m_stream_type = ostreamType::std_err;
+	return m_to_print;
 }
-ostream& Loger::info() const {
-	string output_str = getSystemTime();
-	output_str.append(m_info_tag);
-	cout << output_str;
-	return cout;
+Pstring& Loger::warn() {
+	m_to_print.append(getSystemTime());
+	m_to_print.append(sm_warn_tag);
+	m_stream_type = ostreamType::std_cout;
+	return m_to_print;
 }
-ostream& Loger::pluginError(BasicPlugin* plg) const {
-	string output_str = getSystemTime();
-	output_str.append(m_error_tag);
-	output_str.append("[\033[36m");
-	output_str.append(plg->PluginName());
-	output_str.append("\033[0m] ");
-	cout << output_str;
-	return cout;
+Pstring& Loger::info() {
+	m_to_print.append(getSystemTime());
+	m_to_print.append(sm_info_tag);
+	m_stream_type = ostreamType::std_cout;
+	return m_to_print;
 }
-ostream& Loger::pluginWarn(BasicPlugin* plg) const {
-	string output_str = getSystemTime();
-	output_str.append(m_warn_tag);
-	output_str.append("[\033[36m");
-	output_str.append(plg->PluginName());
-	output_str.append("\033[0m] ");
-	cout << output_str;
-	return cout;
+Pstring& Loger::pluginError(BasicPlugin* plg) {
+	m_to_print.append(getSystemTime());
+	m_to_print.append(sm_error_tag);
+	m_to_print.append("[\033[36m");
+	m_to_print.append(plg->PluginName());
+	m_to_print.append("\033[0m] ");
+	m_stream_type = ostreamType::std_err;
+	return m_to_print;
 }
-ostream& Loger::pluginInfo(BasicPlugin* plg) const {
-	string output_str = getSystemTime();
-	output_str.append(m_info_tag);
-	output_str.append("[\033[36m");
-	output_str.append(plg->PluginName());
-	output_str.append("\033[0m] ");
-	cout << output_str;
-	return cout;
+Pstring& Loger::pluginWarn(BasicPlugin* plg) {
+	m_to_print.append(getSystemTime());
+	m_to_print.append(sm_warn_tag);
+	m_to_print.append("[\033[36m");
+	m_to_print.append(plg->PluginName());
+	m_to_print.append("\033[0m] ");
+	m_stream_type = ostreamType::std_cout;
+	return m_to_print;
 }
-
-Loger* Loger::getLoger() {
-	return m_log;
+Pstring& Loger::pluginInfo(BasicPlugin* plg) {
+	m_to_print.append(getSystemTime());
+	m_to_print.append(sm_info_tag);
+	m_to_print.append("[\033[36m");
+	m_to_print.append(plg->PluginName());
+	m_to_print.append("\033[0m] ");
+	m_stream_type = ostreamType::std_cout;
+	return m_to_print;
 }
-
-string Loger::m_error_tag = " \033[31mError\033[0m]";
-string Loger::m_warn_tag = " \033[33mWarn\033[0m] ";
-string Loger::m_info_tag = " \033[34mInfo\033[0m] ";

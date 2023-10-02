@@ -6,8 +6,9 @@
 
 使用的库：
 
-- [libcurl](https://github.com/curl/curl/) 不带openssl
+- [libcurl](https://github.com/curl/curl/)
 - [libevent](https://github.com/libevent/libevent) 
 - [json](https://github.com/nlohmann/json/#projects-using-json-for-modern-c)
+- [SQlite3](https://www.sqlite.org)
 
 目前只封装了go-cqhttp的四分之三的API、go-cqhttp支持的常用CQcode，没有对事件进行封装。这意味着制作插件需要自己解析go-cqhttp的事件上报json。

@@ -7,35 +7,35 @@ void CorePlugin(const string& msg, MainProcess* m) {
 			// 群变动时更新群列表，包括群内人数改变（包括Bot加群退群）
 			if (QQevent["notice_type"] == "group_decrease" || QQevent["notice_type"] == "group_increase") {
 				if (QQevent["user_id"] == QQBot.getThisBotID()) {	// 如果是Bot加群退群，更新bot群列表
-					loger.info() << "QQBot group list changed." << endl;
+					loger.info() << "QQBot group list changed.";
 					QQBot.fetchThisBotGroupList();
 					QQBot.printGroupList();
 				}
 				else {
 					if (QQBot.fetchThisBotGroupMemberList(QQevent["group_id"]) == 0) {	// 如果是其他群，更新对应群即可
-						loger.info() << "QQBot group " << QQevent["group_id"] << " updated." << endl;
+						loger.info() << "QQBot group " << QQevent["group_id"] << " updated.";
 					}
 				}
 			}
 			// 群成员信息变动
 			if (QQevent["notice_type"] == "group_admin") {
 				if (QQBot.fetchThisBotGroupMemberList(QQevent["group_id"]) == 0) {
-					loger.info() << "QQBot group " << QQevent["group_id"] << " updated." << endl;
+					loger.info() << "QQBot group " << QQevent["group_id"] << " updated.";
 				}
 			}
 			if (QQevent["notice_type"] == "notify" && QQevent["sub_type"] == "title") {
 				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
-					loger.info() << "QQGroupMember " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " updated." << endl;
+					loger.info() << "QQGroupMember " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " updated.";
 				}
 			}
 			if (QQevent["notice_type"] == "group_card") {
 				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
-					loger.info() << "QQGroupMember " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " updated." << endl;
+					loger.info() << "QQGroupMember " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " updated.";
 				}
 			}
 			// 好友变动时更新好友列表
 			if (QQevent["notice_type"] == "friend_add") {
-				loger.info() << "QQBot friend list changed." << endl;
+				loger.info() << "QQBot friend list changed.";
 				QQBot.fetchThisBotFriendList();
 				QQBot.fetchThisBotUFriendList();
 				QQBot.printFriendList();
@@ -44,41 +44,41 @@ void CorePlugin(const string& msg, MainProcess* m) {
 			// 群内名片、头衔改变
 			if (QQevent["notice_type"] == "group_card") {
 				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
-					loger.info() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information updated." << endl;
+					loger.info() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information updated.";
 				}
 				else {
-					loger.warn() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information update failed!" << endl;
+					loger.warn() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information update failed!";
 				}
 			}
 			if (QQevent["notice_type"] == "notify" && QQevent["sub_type"] == "title") {
 				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
-					loger.info() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information updated." << endl;
+					loger.info() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information updated.";
 				}
 				else {
-					loger.warn() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information update failed!" << endl;
+					loger.warn() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information update failed!";
 				}
 			}
 		}
 		// 加群、加好友
 		if (QQevent["post_type"] == "request") {
 			if (QQevent["request_type"] == "friend") {
-				loger.info() << QQevent["user_id"] << " requests to add bot as a friend: " << QQevent["comment"] << endl;
+				loger.info() << QQevent["user_id"] << " requests to add bot as a friend: " << QQevent["comment"];
 				if (m->m_auto_add_friend) {
 					QQBot.applyAddFriendRequest(QQevent["flag"], true, "");
-					loger.info() << "Automatically added friend " << QQevent["user_id"] << endl;
+					loger.info() << "Automatically added friend " << QQevent["user_id"];
 				}
 			}
 			if (QQevent["request_type"] == "group" && QQevent["sub_type"] == "invite") {
-				loger.info() << "bot is invited to join group " << QQevent["group_id"] << endl;
+				loger.info() << "bot is invited to join group " << QQevent["group_id"];
 				if (m->m_auto_join_group) {
 					QQBot.applyAddGroupRequest(QQevent["flag"], QQevent["sub_type"], true, "");
-					loger.info() << "Automatically join group " << QQevent["group_id"] << endl;
+					loger.info() << "Automatically join group " << QQevent["group_id"];
 				}
 			}
 		}
 	}
 	catch (...) {
-		loger.error() << "CorePlugin Exception." << endl;
+		loger.error() << "CorePlugin Exception.";
 	}
 }
 
@@ -102,7 +102,7 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 			while (recv_size > counter) {
 				ssize_t once_size = evbuffer_remove(recv_buffer, recv_data, recv_size);
 				if (once_size == -1) {
-					loger.error() << "Failed to get data from input buffer!" << endl;
+					loger.error() << "Failed to get data from input buffer!";
 					return;
 				}
 				else {
@@ -120,7 +120,7 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 				json data = json::parse(recv_data);
 				do {
 					if (data["self_id"] != QQBot.getThisBotID()) {
-						loger.warn() << "Received messages from other QQ bots, ignored." << endl;
+						loger.warn() << "Received messages from other QQ bots, ignored.";
 						break;
 					}
 					if (data["self_id"] == "meta_event" && data["meta_event_type"] == "heartbeat") {
@@ -130,18 +130,18 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 				} while (false);
 			}
 			else {
-				loger.warn() << "The size of data received doesn't match client report." << endl;
+				loger.warn() << "The size of data received doesn't match client report.";
 			}
 			delete[] recv_data;
 			chrono::duration<double> runTime = chrono::system_clock::now() - startTime;
 			auto runTimeCount = runTime.count();
 			if (runTimeCount > 4.75) {
-				loger.warn() << "HTTPRequestCB run time: " << fixed << setprecision(2) << runTimeCount << " is longer than 5s." << endl;
+				loger.warn() << "HTTPRequestCB run time: " << runTimeCount << " is longer than 5s.";
 			}
 		}
 	}
 	catch (...) {
-		loger.error() << "Libevent's evhttp callback function HTTPRequestCB Exception." << endl;
+		loger.error() << "Libevent's evhttp callback function HTTPRequestCB Exception.";
 	}
 }
 
@@ -159,6 +159,6 @@ void TickEventCB(evutil_socket_t fd, short event_t, void* cb_arg) {
 		}
 	}
 	catch (...) {
-		loger.error() << "Libevent's timer callback function TickEventCB Exception." << endl;
+		loger.error() << "Libevent's timer callback function TickEventCB Exception.";
 	}
 }

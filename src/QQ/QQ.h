@@ -229,11 +229,11 @@ private:
 		m_cqhttp_use_cache(m_cqhttp_use_cache) {
 		sqlite_c = new SQLiteClient;
 		if (!sqlite_c->opendb(":memory:")) {
-			loger.error() << "Failed to create SQLite database: " << sqlite_c->errmsg() << endl;
+			loger.error() << "Failed to create SQLite database: " << sqlite_c->errmsg();
 			exit(0);
 		}
 		if (!sqlite_c->update(create_table_sql)) {
-			loger.error() << "Failed to create SQLite tables: " << sqlite_c->errmsg() << endl;
+			loger.error() << "Failed to create SQLite tables: " << sqlite_c->errmsg();
 			exit(0);
 		}
 	}
