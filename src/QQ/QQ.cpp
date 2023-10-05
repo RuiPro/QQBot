@@ -1,6 +1,11 @@
 #include <curl.h>
 #include <chrono>
+#include "QQ_sql.h"
+#include "../sqlc/sqlite_client.h"
+#include "../Loger/loger.h"
 #include "QQ.h"
+#include <json.hpp>
+using json = nlohmann::json;
 
 // 创建Bot实例
 ThisBot* ThisBot::sm_bot;
@@ -12,6 +17,27 @@ void createBot(const string& cqhttp_addr, const string& cqhttp_access_token, boo
 size_t curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
 	((string*)userdata)->append(ptr, size * nmemb);
 	return size * nmemb;
+}
+
+ThisBot::ThisBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache) :
+	m_cqhttp_addr(cqhttp_addr),
+	m_cqhttp_access_token(cqhttp_access_token),
+	m_cqhttp_use_cache(m_cqhttp_use_cache) {
+	sqlite_c = new SQLiteClient;
+	if (!sqlite_c->opendb(":memory:")) {
+		loger.error() << "Failed to create SQLite database: " << sqlite_c->errmsg();
+		exit(0);
+	}
+	if (!sqlite_c->update(create_table_sql)) {
+		loger.error() << "Failed to create SQLite tables: " << sqlite_c->errmsg();
+		exit(0);
+	}
+}
+ThisBot::~ThisBot() {
+	if (sqlite_c != nullptr) {
+		delete sqlite_c;
+		sqlite_c = nullptr;
+	}
 }
 
 // 【Get】这些函数用以获取Bot中已设置的信息
@@ -1683,6 +1709,9 @@ int ThisBot::applyKickGroupMember(unsigned int group_id, unsigned int member_id,
 }
 
 // 静态公开成员函数
+ThisBot* ThisBot::getThisBotObj() {
+	return ThisBot::sm_bot;
+}
 string ThisBot::getQQHeaderImageURL(unsigned int QQid) {
 	// https://qlogo3.store.qq.com/qzone/(%QQID%)/(%QQID%)/640.jfif		//OK
 	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(%QQID%)&spec=640		//OK

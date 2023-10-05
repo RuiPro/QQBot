@@ -1,7 +1,7 @@
 #ifndef QQMESSAGE_H
 #define QQMESSAGE_H
 
-#include "QQ.h"
+#include <string>
 using namespace std;
 
 // QQ发送的消息类

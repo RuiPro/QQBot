@@ -22,11 +22,13 @@ add_executable (QQBot.app
  "src/ThreadPool/thread_pool.hpp"
  "src/ThreadPool/thread_pool.cpp"
  "src/main_process.cpp"
- "src/functions.cpp")
+ "src/functions.cpp"
+ "src/load_plugin.cpp")
 
  # 自建库
- add_library(loger SHARED  "src/Loger/loger.cpp")
- add_library(QQ SHARED  "src/QQ/QQ_message.cpp"  "src/QQ/QQ.cpp" "src/sqlc/sqlite_client.cpp")
+ add_library(loger SHARED "src/Loger/loger.cpp")
+ add_library(QQ SHARED "src/QQ/QQ_message.cpp"  "src/QQ/QQ.cpp")
+ add_library(sqlitec SHARED "src/sqlc/sqlite_client.cpp")
 
  # 外部库头文件
 include_directories(${PROJECT_SOURCE_DIR}/include/json)
@@ -35,8 +37,8 @@ include_directories(${PROJECT_SOURCE_DIR}/include/libcurl)
 include_directories(${PROJECT_SOURCE_DIR}/include/libsqlite3)
 
 # 链接库
-target_link_libraries(QQ "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libsqlite3/libsqlite3.so.0.8.6")
-
+target_link_libraries(sqlitec "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libsqlite3/libsqlite3.so.0.8.6")
+target_link_libraries(QQBot.app sqlitec)
 target_link_libraries(QQBot.app loger)
 target_link_libraries(QQBot.app QQ)
 target_link_libraries(QQBot.app "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libcurl/libcurl.so")
@@ -56,6 +58,11 @@ target_link_libraries(QQBot.app dl)
 # 复制库文件
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     message("Copy library to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/lib")
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libsqlite3/libsqlite3.so.0.8.6
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/lib
+    )
     add_custom_command(TARGET QQBot.app POST_BUILD 
                    COMMAND ${CMAKE_COMMAND} -E copy
                    ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libcurl/libcurl.so
@@ -83,6 +90,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     ) 
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     message("Copy library to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/lib")
+    add_custom_command(TARGET QQBot.app POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                   ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libsqlite3/libsqlite3.so.0.8.6
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/lib
+    )
     add_custom_command(TARGET QQBot.app POST_BUILD 
                    COMMAND ${CMAKE_COMMAND} -E copy
                    ${PROJECT_SOURCE_DIR}/lib/linux_amd64/libcurl/libcurl.so

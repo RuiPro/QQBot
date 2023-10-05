@@ -1,3 +1,5 @@
+#include <json.hpp>
+using json = nlohmann::json;
 #include "QQ_message.h"
 
 void QQMessage::setMsgID(int msg_id) {

@@ -7,15 +7,11 @@
 #include <vector>
 #include <utility>
 #include <mutex>
-#include "QQ_sql.h"
 #include "QQ_struct.h"
 #include "QQ_message.h"
-#include "../sqlc/sqlite_client.h"
-#include <json.hpp>
-#include "../Loger/loger.h"
 using namespace std;
-using json = nlohmann::json;
 
+class SQLiteClient;
 class QQMessage;
 class QQRawMessage;
 
@@ -110,12 +106,7 @@ void createBot(const string&, const string&, bool);
 class ThisBot {
 	friend void createBot(const string&, const string&, bool);
 public:
-	~ThisBot() {
-		if (sqlite_c != nullptr) {
-			delete sqlite_c;
-			sqlite_c = nullptr;
-		}
-	}
+	~ThisBot();
 	ThisBot(const ThisBot&) = delete;
 	ThisBot(ThisBot&&) = delete;
 	ThisBot& operator=(const ThisBot& obj) = delete;
@@ -218,25 +209,10 @@ public:
 	int applySendGroupNotice(unsigned int group_id, const string& content, const string& image_url);				// 发送群公告
 	int applyKickGroupMember(unsigned int group_id, unsigned int member_id, bool allow_join_again = true);	// 踢出成员
 	
-	static ThisBot* getThisBotObj() {
-		return ThisBot::sm_bot;
-	}
+	static ThisBot* getThisBotObj();
 	static string getQQHeaderImageURL(unsigned int user_id);		// 使用QQ号获取QQ头像链接
 private:
-	ThisBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache) :
-		m_cqhttp_addr(cqhttp_addr),
-		m_cqhttp_access_token(cqhttp_access_token),
-		m_cqhttp_use_cache(m_cqhttp_use_cache) {
-		sqlite_c = new SQLiteClient;
-		if (!sqlite_c->opendb(":memory:")) {
-			loger.error() << "Failed to create SQLite database: " << sqlite_c->errmsg();
-			exit(0);
-		}
-		if (!sqlite_c->update(create_table_sql)) {
-			loger.error() << "Failed to create SQLite tables: " << sqlite_c->errmsg();
-			exit(0);
-		}
-	}
+	ThisBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache);
 	static ThisBot* sm_bot;
 
 	SQLiteClient* sqlite_c = nullptr;		// 内存数据库

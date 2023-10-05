@@ -283,14 +283,14 @@ int MainProcess::loadPlugins() {
 				delete load_plugin;
 				continue;
 			}
-			loger.info() << "Loading plugin " << load_plugin->GetName() << " " << load_plugin->GetVersion() << "...\n";
+			loger.info() << "Loading plugin " << load_plugin->getPluginName() << " " << load_plugin->getPluginVersion() << "...\n";
 			// 加载插件后，为插件创建一个插件专用的目录
-			if (loadDir(plugins_dir_path + load_plugin->GetName() + "/") != 0) {
-				loger.warn() << "Faild to create diretory for plugin: " << load_plugin->GetName();
+			if (loadDir(plugins_dir_path + load_plugin->getPluginName() + "/") != 0) {
+				loger.warn() << "Faild to create diretory for plugin: " << load_plugin->getPluginName();
 				delete load_plugin;
 				continue;
 			}
-			load_plugin->Loading();
+			load_plugin->loading();
 			m_plugins_list->push_back(load_plugin);
 		}
 	}
