@@ -14,8 +14,8 @@ class ThisBot;
 // 加载插件类：用于把插件加载到内存中，插件的使用和析构
 class LoadedPlugin {
 public:
-	// 构造：传入插件位置和一个QQbot
-	LoadedPlugin(const string& plugin_path, ThisBot* bot, const string& app_path);
+	// 构造：传入插件位置
+	LoadedPlugin(const string& plugin_path, const string& app_path);
 	~LoadedPlugin();
 	// 判断插件状态
 	bool isGood();
@@ -35,7 +35,7 @@ public:
 	BasicPlugin* getBasicPlugin();
 private:
 	bool m_plugin_status = Good_Plugin;
-	BasicPlugin* (*m_loadPlugin)(ThisBot*, const string&);
+	BasicPlugin* (*m_loadPlugin)(const string&);
 	void (*m_destroyPlugin)(BasicPlugin*);
 	BasicPlugin* m_plugin = nullptr;
 	void* m_handle = nullptr;

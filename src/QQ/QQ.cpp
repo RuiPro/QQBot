@@ -308,6 +308,10 @@ int ThisBot::fetchThisBotBasicInfo() {
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function fetchThisBotBasicInfo: " << e.what();
+		return -1;
+	}
 	catch (...) {
 		loger.error() << "Exception in function fetchThisBotBasicInfo.";
 		return -1;
@@ -349,6 +353,10 @@ int ThisBot::fetchThisBotFriendList() {
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function fetchThisBotFriendList: " << e.what();
+		return -1;
+	}
 	catch (...) {
 		loger.error() << "Exception in function fetchThisBotFriendList.";
 		return -1;
@@ -386,6 +394,10 @@ int ThisBot::fetchThisBotUFriendList() {
 			return -1;
 		}
 		return 0;
+	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function fetchThisBotUFriendList: " << e.what();
+		return -1;
 	}
 	catch (...) {
 		loger.error() << "Exception in function fetchThisBotUFriendList.";
@@ -429,6 +441,10 @@ int ThisBot::fetchThisBotGroupList() {
 			return -1;
 		}
 		return 0;
+	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function fetchThisBotGroupList: " << e.what();
+		return -1;
 	}
 	catch (...) {
 		loger.error() << "Exception in function fetchThisBotGroupList.";
@@ -500,6 +516,10 @@ int ThisBot::fetchThisBotGroupMemberList(unsigned int group_id) {
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function fetchThisBotGroupMemberList: " << e.what();
+		return -1;
+	}
 	catch (...) {
 		loger.error() << "Exception in function fetchThisBotGroupMemberList.";
 		return -1;
@@ -566,6 +586,10 @@ int ThisBot::fetchThisBotGroupMemberInfo(unsigned int group_id, unsigned int mem
 			return -1;
 		}
 		return 0;
+	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function fetchThisBotGroupMemberInfo: " << e.what();
+		return -1;
 	}
 	catch (...) {
 		loger.error() << "Exception in function fetchThisBotGroupMemberInfo.";
@@ -1709,9 +1733,6 @@ int ThisBot::applyKickGroupMember(unsigned int group_id, unsigned int member_id,
 }
 
 // 静态公开成员函数
-ThisBot* ThisBot::getThisBotObj() {
-	return ThisBot::sm_bot;
-}
 string ThisBot::getQQHeaderImageURL(unsigned int QQid) {
 	// https://qlogo3.store.qq.com/qzone/(%QQID%)/(%QQID%)/640.jfif		//OK
 	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(%QQID%)&spec=640		//OK

@@ -209,7 +209,9 @@ public:
 	int applySendGroupNotice(unsigned int group_id, const string& content, const string& image_url);				// 发送群公告
 	int applyKickGroupMember(unsigned int group_id, unsigned int member_id, bool allow_join_again = true);	// 踢出成员
 	
-	static ThisBot* getThisBotObj();
+	static ThisBot* getThisBotObj(){
+		return ThisBot::sm_bot;	
+	};
 	static string getQQHeaderImageURL(unsigned int user_id);		// 使用QQ号获取QQ头像链接
 private:
 	ThisBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache);

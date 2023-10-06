@@ -277,13 +277,13 @@ int MainProcess::loadPlugins() {
 			string file_name(file->d_name);
 			string suffix = ".plg";
 			if (file_name.length() <= 4 || file_name.substr(file_name.length() - suffix.length()) != suffix) continue;
-			LoadedPlugin* load_plugin = new LoadedPlugin(plugins_dir_path + file_name, QQBotPtr, m_app_path);
+			LoadedPlugin* load_plugin = new LoadedPlugin(plugins_dir_path + file_name, m_app_path);
 			if (!load_plugin->isGood()) {
 				loger.warn() << "Plugin " << file_name << " faild to load: bad plugin.";
 				delete load_plugin;
 				continue;
 			}
-			loger.info() << "Loading plugin " << load_plugin->getPluginName() << " " << load_plugin->getPluginVersion() << "...\n";
+			loger.info() << "Loading plugin " << load_plugin->getPluginName() << " " << load_plugin->getPluginVersion() << "...";
 			// 加载插件后，为插件创建一个插件专用的目录
 			if (loadDir(plugins_dir_path + load_plugin->getPluginName() + "/") != 0) {
 				loger.warn() << "Faild to create diretory for plugin: " << load_plugin->getPluginName();

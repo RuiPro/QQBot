@@ -1,7 +1,7 @@
 #include "load_plugin.h"
 #include "Loger/loger.h"
 
-LoadedPlugin::LoadedPlugin(const string& plugin_path, ThisBot* bot, const string& app_path) {
+LoadedPlugin::LoadedPlugin(const string& plugin_path, const string& app_path) {
 	m_handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
 	if (m_handle == nullptr) {
 		loger.error() << "Open plugin failed: " << dlerror();
@@ -22,7 +22,7 @@ LoadedPlugin::LoadedPlugin(const string& plugin_path, ThisBot* bot, const string
 		m_plugin_status = Bad_Plugin;
 		return;
 	}
-	m_plugin = m_loadPlugin(bot, app_path);
+	m_plugin = m_loadPlugin(app_path);
 }
 LoadedPlugin::~LoadedPlugin() {
 	if (m_plugin != nullptr) m_destroyPlugin(m_plugin);
