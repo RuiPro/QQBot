@@ -5,6 +5,7 @@
 #include <event.h>
 #include <evhttp.h>
 #include <event2/thread.h>
+#include <sqlite3.h>
 
 #include <iostream>
 #include <fstream>

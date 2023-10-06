@@ -149,13 +149,13 @@ void TickEventCB(evutil_socket_t fd, short event_t, void* cb_arg) {
 	try {
 		MainProcess* arg = (MainProcess*)cb_arg;
 		for (auto& plugin : *arg->m_plugins_list) {
-			arg->m_thread_pool->addTask((void(BasicPlugin::*)()) & BasicPlugin::PluginMain, plugin->GetBasicPlugin());
+			arg->m_thread_pool->addTask((void(BasicPlugin::*)()) & BasicPlugin::pluginMain, plugin->getBasicPlugin());
 		}
 		string a_msg;
 		if (arg->msgQueueGet(a_msg) != 0) return;
 		CorePlugin(a_msg, arg);
 		for (auto& plugin : *arg->m_plugins_list) {
-			arg->m_thread_pool->addTask((void(BasicPlugin::*)(const string&)) & BasicPlugin::PluginMain, plugin->GetBasicPlugin(), a_msg);
+			arg->m_thread_pool->addTask((void(BasicPlugin::*)(const string&)) & BasicPlugin::pluginMain, plugin->getBasicPlugin(), a_msg);
 		}
 	}
 	catch (...) {

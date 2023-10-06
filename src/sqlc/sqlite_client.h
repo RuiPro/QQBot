@@ -171,6 +171,8 @@ public:
 	// 判断是否含有数据表
 	bool hasTable(const string& table_name);
 
+    static string sqliteVersion();
+
 	// 用于数据库连接池
 	// 刷新起始的空闲时间点
 	void resetIdleTime();

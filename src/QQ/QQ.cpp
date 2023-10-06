@@ -1,6 +1,11 @@
 #include <curl.h>
 #include <chrono>
+#include "QQ_sql.h"
+#include "../sqlc/sqlite_client.h"
+#include "../Loger/loger.h"
 #include "QQ.h"
+#include <json.hpp>
+using json = nlohmann::json;
 
 // 创建Bot实例
 ThisBot* ThisBot::sm_bot;
@@ -12,6 +17,27 @@ void createBot(const string& cqhttp_addr, const string& cqhttp_access_token, boo
 size_t curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
 	((string*)userdata)->append(ptr, size * nmemb);
 	return size * nmemb;
+}
+
+ThisBot::ThisBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache) :
+	m_cqhttp_addr(cqhttp_addr),
+	m_cqhttp_access_token(cqhttp_access_token),
+	m_cqhttp_use_cache(m_cqhttp_use_cache) {
+	sqlite_c = new SQLiteClient;
+	if (!sqlite_c->opendb(":memory:")) {
+		loger.error() << "Failed to create SQLite database: " << sqlite_c->errmsg();
+		exit(0);
+	}
+	if (!sqlite_c->update(create_table_sql)) {
+		loger.error() << "Failed to create SQLite tables: " << sqlite_c->errmsg();
+		exit(0);
+	}
+}
+ThisBot::~ThisBot() {
+	if (sqlite_c != nullptr) {
+		delete sqlite_c;
+		sqlite_c = nullptr;
+	}
 }
 
 // 【Get】这些函数用以获取Bot中已设置的信息
@@ -282,8 +308,12 @@ int ThisBot::fetchThisBotBasicInfo() {
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function " << __FUNCTION__ << ": " << e.what();
+		return -1;
+	}
 	catch (...) {
-		loger.error() << "Exception in function fetchThisBotBasicInfo.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -323,8 +353,12 @@ int ThisBot::fetchThisBotFriendList() {
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function " << __FUNCTION__ << ": " << e.what();
+		return -1;
+	}
 	catch (...) {
-		loger.error() << "Exception in function fetchThisBotFriendList.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -361,8 +395,12 @@ int ThisBot::fetchThisBotUFriendList() {
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function " << __FUNCTION__ << ": " << e.what();
+		return -1;
+	}
 	catch (...) {
-		loger.error() << "Exception in function fetchThisBotUFriendList.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -404,8 +442,12 @@ int ThisBot::fetchThisBotGroupList() {
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function " << __FUNCTION__ << ": " << e.what();
+		return -1;
+	}
 	catch (...) {
-		loger.error() << "Exception in function fetchThisBotGroupList.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -474,8 +516,12 @@ int ThisBot::fetchThisBotGroupMemberList(unsigned int group_id) {
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function " << __FUNCTION__ << ": " << e.what();
+		return -1;
+	}
 	catch (...) {
-		loger.error() << "Exception in function fetchThisBotGroupMemberList.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -541,8 +587,12 @@ int ThisBot::fetchThisBotGroupMemberInfo(unsigned int group_id, unsigned int mem
 		}
 		return 0;
 	}
+	catch (const exception& e) {
+		loger.error() << "Exception in function " << __FUNCTION__ << ": " << e.what();
+		return -1;
+	}
 	catch (...) {
-		loger.error() << "Exception in function fetchThisBotGroupMemberInfo.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -576,7 +626,7 @@ QQGroup ThisBot::queryGroupInfo(unsigned int group_id) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryGroupInfo.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return QQGroup(0);
 	}
 }
@@ -609,7 +659,7 @@ QQUser ThisBot::queryUserInfo(unsigned int user_id) {
 		}
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryUserInfo.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return QQUser(0);
 	}
 }
@@ -643,7 +693,7 @@ QQRawMessage ThisBot::queryMessageInfo(int message_id) {
 		}
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryMessageInfo.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return QQRawMessage();
 	}
 }
@@ -666,7 +716,7 @@ string ThisBot::queryCqhttpVersion() {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryCqhttpVersion.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return string();
 	}
 }
@@ -688,7 +738,7 @@ bool ThisBot::queryCanSendImage() {
 		return true;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryCanSendImage.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return false;
 	}
 }
@@ -710,7 +760,7 @@ bool ThisBot::queryCanSendRecord() {
 		return true;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryCanSendRecord.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return false;
 	}
 }
@@ -738,7 +788,7 @@ vector<pair<string, bool>> ThisBot::queryDeviceShowList(const string& device_nam
 		return ret_set;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryDeviceShowList.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return ret_set;
 	}
 }
@@ -771,7 +821,7 @@ vector<QQOnlineClient> ThisBot::queryOnlineClients() {
 		return clients;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryOnlineClients.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return clients;
 	}
 }
@@ -804,7 +854,7 @@ vector<QQForwardMsgNode> ThisBot::queryForwardMsgContent(const string& forward_i
 		return forward_msg_list;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryForwardMsgContent.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return forward_msg_list;
 	}
 }
@@ -847,7 +897,7 @@ vector<QQRawMessage> ThisBot::queryGroupHistoryMsg(unsigned int group_id, unsign
 		return history_msg_list;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryGroupHistoryMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return history_msg_list;
 	}
 }
@@ -874,7 +924,7 @@ int ThisBot::queryImageInfo(const string& file, int& size, string& filename, str
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryImageInfo.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -904,7 +954,7 @@ string ThisBot::queryRecordInfo(const string& file, const string& out_format) {
 		return file_addr;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryRecordInfo.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return file_addr;
 	}
 }
@@ -975,7 +1025,7 @@ QQGroupHonor ThisBot::queryGroupHonorInfo(unsigned int group_id, const string& t
 		return QGH;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryGroupHonorInfo.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return QGH;
 	}
 }
@@ -1023,7 +1073,7 @@ QQGroupSystemMsg ThisBot::queryGroupSystemMsg(unsigned int group_id) {
 		return QGSM;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryGroupSystemMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return QGSM;
 	}
 }
@@ -1059,7 +1109,7 @@ vector<QQEssenceMsg> ThisBot::queryGroupEssenceMsg(unsigned int group_id) {
 		return essence_msg_list;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryGroupEssenceMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return essence_msg_list;
 	}
 }
@@ -1090,7 +1140,7 @@ int ThisBot::queryGroupatAllChance(unsigned int group_id) {
 		return ret;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryGroupatAllChance.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1123,7 +1173,7 @@ vector<QQGroupNotice> ThisBot::queryGroupNotice(unsigned int group_id) {
 		return group_notice_list;
 	}
 	catch (...) {
-		loger.error() << "Exception in function queryGroupNotice.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return group_notice_list;
 	}
 }
@@ -1153,7 +1203,7 @@ int ThisBot::applySendPrivateMsg(unsigned int friend_id, QQMessage& msg) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySendPrivateMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1182,7 +1232,7 @@ int ThisBot::applySendGroupMsg(unsigned int group_id, QQMessage& msg) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySendGroupMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1211,7 +1261,7 @@ int ThisBot::applySendPrivateForwardMsg(unsigned int friend_id, QQMessage& msg) 
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySendPrivateForwardMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1240,7 +1290,7 @@ int ThisBot::applySendGroupeForwardMsg(unsigned int group_id, QQMessage& msg) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySendGroupeForwardMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1271,7 +1321,7 @@ int ThisBot::applyRemoveFriend(unsigned int friend_id) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyRemoveFriend.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1302,7 +1352,7 @@ int ThisBot::applyRemoveUFriend(unsigned int ufriend_id) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyRemoveUFriend.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1339,7 +1389,7 @@ int ThisBot::applyRemoveGroup(unsigned int group_id, bool dissolve) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyRemoveGroup.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1355,7 +1405,7 @@ int ThisBot::applyWithdrawMsg(int message_id) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyWithdrawMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1376,7 +1426,7 @@ int ThisBot::applySetThisBotProfile(const string& nickname, const string& compan
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySetThisBotProfile.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1396,7 +1446,7 @@ int ThisBot::applyAddFriendRequest(const string& flag, const bool approve, const
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyAddFriendRequest.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1417,7 +1467,7 @@ int ThisBot::applyAddGroupRequest(const string& flag, const string& sub_type, co
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyAddGroupRequest.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1434,7 +1484,7 @@ int ThisBot::applySetDeviceShowName(const string& device_name, const string& dev
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySetDeviceShowName.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 	return 0;
@@ -1451,7 +1501,7 @@ int ThisBot::applyMarkMsgAsRead(int message_id) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyMarkMsgAsRead.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1469,7 +1519,7 @@ int ThisBot::applySetGroupName(unsigned int group_id, const string& name) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySetGroupName.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1491,7 +1541,7 @@ int ThisBot::applySetGroupAdmin(unsigned int group_id, unsigned int member_id, b
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySetGroupAdmin.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1510,7 +1560,7 @@ int ThisBot::applySetGroupMemberNickname(unsigned int group_id, unsigned int mem
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySetGroupMemberNickname.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1530,7 +1580,7 @@ int ThisBot::applySetGroupMemberTitle(unsigned int group_id, unsigned int member
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySetGroupMemberTitle.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1549,7 +1599,7 @@ int ThisBot::applyMuteGroupMember(unsigned int group_id, unsigned int member_id,
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyMuteGroupMember.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1566,7 +1616,7 @@ int ThisBot::applyMuteGroupAll(unsigned int group_id, bool mute) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyMuteGroupAll.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1591,7 +1641,7 @@ int ThisBot::applyMuteGroupAnonymous(unsigned int group_id, const string& anonym
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyMuteGroupAnonymous.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1607,7 +1657,7 @@ int ThisBot::applySetGroupEssenceMsg(int message_id) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySetGroupEssenceMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1623,7 +1673,7 @@ int ThisBot::applyRemoveGroupEssenceMsg(int message_id) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyRemoveGroupEssenceMsg.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1639,7 +1689,7 @@ int ThisBot::applyClockInGroup(unsigned int group_id) {
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyClockInGroup.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1659,7 +1709,7 @@ int ThisBot::applySendGroupNotice(unsigned int group_id, const string& content, 
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applySendGroupNotice.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1677,7 +1727,7 @@ int ThisBot::applyKickGroupMember(unsigned int group_id, unsigned int member_id,
 		return 0;
 	}
 	catch (...) {
-		loger.error() << "Exception in function applyKickGroupMember.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
 	}
 }
@@ -1755,7 +1805,7 @@ int ThisBot::sendGETRequest(const string& URL, string& recv_buffer) {
 		return -1;
 	}
 	catch (...) {
-		loger.error() << "Exception in function sendGETRequest.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		curl_easy_cleanup(handle);
 		return -1;
 	}
@@ -1825,7 +1875,7 @@ int ThisBot::sendPOSTRequest(const string& URL, const string& send_buffer, strin
 		return -1;
 	}
 	catch (...) {
-		loger.error() << "Exception in function sendPOSTRequest.";
+		loger.error() << "Exception in function " << __FUNCTION__;
 		curl_easy_cleanup(handle);
 		return -1;
 	}

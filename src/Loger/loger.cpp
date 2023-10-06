@@ -81,7 +81,7 @@ Pstring& Loger::pluginDebug(BasicPlugin* plg) {
 	m_to_print.append(getSystemTime());
 	m_to_print.append(sm_debug_tag);
 	m_to_print.append("[\033[36m");
-	m_to_print.append(plg->PluginName());
+	m_to_print.append(plg->getPluginName());
 	m_to_print.append("\033[0m] ");
 	m_stream_type = ostreamType::std_err;
 	return m_to_print;
@@ -90,7 +90,7 @@ Pstring& Loger::pluginError(BasicPlugin* plg) {
 	m_to_print.append(getSystemTime());
 	m_to_print.append(sm_error_tag);
 	m_to_print.append("[\033[36m");
-	m_to_print.append(plg->PluginName());
+	m_to_print.append(plg->getPluginName());
 	m_to_print.append("\033[0m] ");
 	m_stream_type = ostreamType::std_err;
 	return m_to_print;
@@ -99,7 +99,7 @@ Pstring& Loger::pluginWarn(BasicPlugin* plg) {
 	m_to_print.append(getSystemTime());
 	m_to_print.append(sm_warn_tag);
 	m_to_print.append("[\033[36m");
-	m_to_print.append(plg->PluginName());
+	m_to_print.append(plg->getPluginName());
 	m_to_print.append("\033[0m] ");
 	m_stream_type = ostreamType::std_cout;
 	return m_to_print;
@@ -108,7 +108,7 @@ Pstring& Loger::pluginInfo(BasicPlugin* plg) {
 	m_to_print.append(getSystemTime());
 	m_to_print.append(sm_info_tag);
 	m_to_print.append("[\033[36m");
-	m_to_print.append(plg->PluginName());
+	m_to_print.append(plg->getPluginName());
 	m_to_print.append("\033[0m] ");
 	m_stream_type = ostreamType::std_cout;
 	return m_to_print;

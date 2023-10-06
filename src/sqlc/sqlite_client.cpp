@@ -100,6 +100,10 @@ bool SQLiteClient::hasTable(const string& table_name) {
 	return false;
 }
 
+string SQLiteClient::sqliteVersion() {
+	return string(sqlite3_version);
+}
+
 void SQLiteClient::resetIdleTime() {
 	m_alivetime = steady_clock::now();
 }
