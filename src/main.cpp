@@ -1,17 +1,18 @@
 #include "main_process.h"
+#include "QQ/QQ.h"
 #include <csignal>
 
 MainProcess* process = nullptr;
 
 void signalHandler(int signal) {
-	delete process;
+	delete ProcessPtr;
 	delete QQBotPtr;
     exit(signal);
 }
 
 int main(int argc, char** argv) {
     signal(SIGINT, signalHandler);
-	process = new MainProcess(argc, argv);
-	process->exec();
+	MainProcess::initMainProcessObj(argc, argv);
+	ProcessPtr->exec();
 	return 0;
 }

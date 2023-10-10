@@ -15,7 +15,7 @@ class ThisBot;
 class LoadedPlugin {
 public:
 	// 构造：传入插件位置
-	LoadedPlugin(const string& plugin_path, const string& app_path);
+	LoadedPlugin(const string& plugin_path, const string& app_path, MainProcess* process);
 	~LoadedPlugin();
 	// 判断插件状态
 	bool isGood();
@@ -29,13 +29,12 @@ public:
 	string getPluginOtherInfo();
 	// 加载插件时执行
 	void loading();
-	// 插件主体，每个Tick执行一次：可以传入从go-cqhttp获取的json信息
-	void pluginMain();
+	// 插件主体，传入从go-cqhttp获取的json信息
 	void pluginMain(const string& msg);
 	BasicPlugin* getBasicPlugin();
 private:
 	bool m_plugin_status = Good_Plugin;
-	BasicPlugin* (*m_loadPlugin)(const string&);
+	BasicPlugin* (*m_loadPlugin)(const string&, MainProcess*);
 	void (*m_destroyPlugin)(BasicPlugin*);
 	BasicPlugin* m_plugin = nullptr;
 	void* m_handle = nullptr;

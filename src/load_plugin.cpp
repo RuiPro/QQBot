@@ -1,28 +1,28 @@
 #include "load_plugin.h"
 #include "Loger/loger.h"
 
-LoadedPlugin::LoadedPlugin(const string& plugin_path, const string& app_path) {
+LoadedPlugin::LoadedPlugin(const string& plugin_path, const string& app_path, MainProcess* process) {
 	m_handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
 	if (m_handle == nullptr) {
 		loger.error() << "Open plugin failed: " << dlerror();
 		m_plugin_status = Bad_Plugin;
 		return;
 	}
-	*(void**)(&m_loadPlugin) = dlsym(m_handle, "loadPlugin");
+	m_loadPlugin = reinterpret_cast<BasicPlugin* (*)(const string&, MainProcess*)>(dlsym(m_handle, "loadPlugin"));
 	if (m_loadPlugin == nullptr) {
 		loger.error() << "Get load plugin function failed: " << dlerror();
 		dlclose(m_handle);
 		m_plugin_status = Bad_Plugin;
 		return;
 	}
-	*(void**)(&m_destroyPlugin) = dlsym(m_handle, "destroyPlugin");
+	m_destroyPlugin = reinterpret_cast<void(*)(BasicPlugin*)>(dlsym(m_handle, "destroyPlugin"));
 	if (m_destroyPlugin == nullptr) {
 		loger.error() << "Get destroy plugin function failed: " << dlerror();
 		dlclose(m_handle);
 		m_plugin_status = Bad_Plugin;
 		return;
 	}
-	m_plugin = m_loadPlugin(app_path);
+	m_plugin = m_loadPlugin(app_path, process);
 }
 LoadedPlugin::~LoadedPlugin() {
 	if (m_plugin != nullptr) m_destroyPlugin(m_plugin);
@@ -52,10 +52,7 @@ string LoadedPlugin::getPluginOtherInfo() {
 void LoadedPlugin::loading() {
 	m_plugin->loading();
 }
-// 插件主体，每个Tick执行一次：可以传入从go-cqhttp获取的json信息
-void LoadedPlugin::pluginMain() {
-	m_plugin->pluginMain();
-}
+// 插件主体，传入从go-cqhttp获取的json信息
 void LoadedPlugin::pluginMain(const string& msg) {
 	m_plugin->pluginMain(msg);
 }

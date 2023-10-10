@@ -22,7 +22,7 @@ add_executable (QQBot.app
  "src/ThreadPool/thread_pool.hpp"
  "src/ThreadPool/thread_pool.cpp"
  "src/main_process.cpp"
- "src/functions.cpp"
+ 
  "src/load_plugin.cpp")
 
  # 自建库
