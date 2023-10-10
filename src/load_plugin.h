@@ -15,7 +15,7 @@ class ThisBot;
 class LoadedPlugin {
 public:
 	// 构造：传入插件位置
-	LoadedPlugin(const string& plugin_path, const string& app_path, MainProcess* process);
+	LoadedPlugin(const string& plugin_path, const string& app_path);
 	~LoadedPlugin();
 	// 判断插件状态
 	bool isGood();
@@ -34,7 +34,7 @@ public:
 	BasicPlugin* getBasicPlugin();
 private:
 	bool m_plugin_status = Good_Plugin;
-	BasicPlugin* (*m_loadPlugin)(const string&, MainProcess*);
+	BasicPlugin* (*m_loadPlugin)(const string&);
 	void (*m_destroyPlugin)(BasicPlugin*);
 	BasicPlugin* m_plugin = nullptr;
 	void* m_handle = nullptr;

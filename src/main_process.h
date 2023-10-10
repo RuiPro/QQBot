@@ -30,7 +30,7 @@ public:
 	MainProcess(MainProcess&&) = delete;
 	MainProcess& operator=(const MainProcess&) = delete;
 	~MainProcess();
-
+	
 	static void initMainProcessObj(int argc, char** argv) {
 		static once_flag init_of;
 		call_once(init_of, [&]() { sm_process = new MainProcess(argc, argv); });

@@ -1,14 +1,14 @@
 #include "load_plugin.h"
 #include "Loger/loger.h"
 
-LoadedPlugin::LoadedPlugin(const string& plugin_path, const string& app_path, MainProcess* process) {
+LoadedPlugin::LoadedPlugin(const string& plugin_path, const string& app_path) {
 	m_handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
 	if (m_handle == nullptr) {
 		loger.error() << "Open plugin failed: " << dlerror();
 		m_plugin_status = Bad_Plugin;
 		return;
 	}
-	m_loadPlugin = reinterpret_cast<BasicPlugin* (*)(const string&, MainProcess*)>(dlsym(m_handle, "loadPlugin"));
+	m_loadPlugin = reinterpret_cast<BasicPlugin* (*)(const string&)>(dlsym(m_handle, "loadPlugin"));
 	if (m_loadPlugin == nullptr) {
 		loger.error() << "Get load plugin function failed: " << dlerror();
 		dlclose(m_handle);
@@ -22,7 +22,7 @@ LoadedPlugin::LoadedPlugin(const string& plugin_path, const string& app_path, Ma
 		m_plugin_status = Bad_Plugin;
 		return;
 	}
-	m_plugin = m_loadPlugin(app_path, process);
+	m_plugin = m_loadPlugin(app_path);
 }
 LoadedPlugin::~LoadedPlugin() {
 	if (m_plugin != nullptr) m_destroyPlugin(m_plugin);

@@ -4,14 +4,11 @@
 #include <string>
 using namespace std;
 
-class MainProcess;
-
 // 插件抽象基类
 class BasicPlugin {
 public:
-	BasicPlugin(const string& app_path, MainProcess* process) {
+	BasicPlugin(const string& app_path) {
 		m_plugin_home_path = app_path;
-		m_main_process = process;
 	}
 	// 获取插件名称
 	virtual string getPluginName() {
@@ -34,7 +31,6 @@ public:
 	// 插件主体，传入从go-cqhttp获取的json信息
 	virtual void pluginMain(const string& msg) = 0;
 protected:
-	MainProcess* m_main_process;	// 主程序地址，用于使用主程序的某些接口
 	string m_name;           // 插件名称，一个标准的插件名称应该由大小写字母、数字和_组成，如QQWeather
 	// 使用!@#$%^&*{}:">*这些字符会导致无法创建插件目录
 	string m_version;        // 插件版本，应该遵循版本命名规范：主版本号.次版本号.修订版本号.日期版本号_希腊字母版本号
