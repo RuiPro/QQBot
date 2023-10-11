@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 set(CMAKE_BUILD_TYPE "Debug")           # 设置模式
 set(CMAKE_CXX_STANDARD 11)
 project ("QQBot" CXX C)
-set(CMAKE_EXE_LINKER_FLAGS "-rdynamic ${CMAKE_EXE_LINKER_FLAGS}")
+# set(CMAKE_EXE_LINKER_FLAGS "-rdynamic ${CMAKE_EXE_LINKER_FLAGS}")
 
 # 输出目录
 # 可执行文件
@@ -18,14 +18,14 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin/debug/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/release/lib)
 
-add_executable (QQBot.app 
- "src/main.cpp"
+add_executable (QQBot.app "src/main.cpp")
+
+ # 自建库
+ add_library(mainproc SHARED
  "src/ThreadPool/thread_pool.hpp"
  "src/ThreadPool/thread_pool.cpp"
  "src/main_process.cpp"
  "src/load_plugin.cpp")
-
- # 自建库
  add_library(loger SHARED "src/Loger/loger.cpp")
  add_library(QQ SHARED "src/QQ/QQ_message.cpp"  "src/QQ/QQ.cpp")
  add_library(sqlitec SHARED "src/sqlc/sqlite_client.cpp")
@@ -38,6 +38,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include/libsqlite3)
 
 # 链接库
 target_link_libraries(sqlitec "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libsqlite3/libsqlite3.so.0.8.6")
+target_link_libraries(QQBot.app mainproc)
 target_link_libraries(QQBot.app sqlitec)
 target_link_libraries(QQBot.app loger)
 target_link_libraries(QQBot.app QQ)

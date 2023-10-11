@@ -4,19 +4,24 @@
 #include <iostream>
 #include <csignal>
 
-MainProcess* process = nullptr;
+bool terminate_flag = false;
 
 void signalHandler(int signal) {
-	std::cout << '\r';
-	delete ProcessPtr;
-	delete QQBotPtr;
-    exit(signal);
+	if (!terminate_flag) {
+		terminate_flag = true;
+		std::cout << '\r';
+		delete ProcessPtr;
+		delete QQBotPtr;
+		exit(signal);
+	}
+	else {
+		exit(0);
+	}
 }
 
 int main(int argc, char** argv) {
     signal(SIGINT, signalHandler);
 	MainProcess::initMainProcessObj(argc, argv);
-	loger.debug() << "ProcessPtr: " << to_string((long)ProcessPtr);
 	ProcessPtr->exec();
 	return 0;
 }

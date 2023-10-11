@@ -96,7 +96,57 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 	}
 }
 void TimerEventCB(evutil_socket_t fd, short event_t, void* cb_arg) {
-	
+	event* ev = *(static_cast<event**>(cb_arg));
+	if (cb_arg != nullptr) delete static_cast<event**>(cb_arg);
+	auto iter = Process.m_event_data->m_timer_task_set->find(ev);
+	if (iter != Process.m_event_data->m_timer_task_set->end()) {
+		Process.m_thread_pool->addTask(iter->second);
+		unique_lock<mutex> locker(Process.m_event_data->m_timer_task_set_mutex);
+		Process.m_event_data->m_timer_task_set->erase(ev);
+	}
+}
+
+event* MainProcess::addTimerTask(const TimeVal& time, const std::function<void()>& task) {
+	timeval tv = time;
+	event* tev = nullptr;
+	if (tv.tv_sec == 0 && tv.tv_usec == 0) return tev;
+	event** tev_ptr = new event*(nullptr);
+	tev = evtimer_new(m_event_data->m_timer_base, TimerEventCB, tev_ptr);
+	if (tev == nullptr) return tev;
+	if (evtimer_add(tev, &tv) == -1) {
+		loger.error() << "Add timer task error.";
+		return nullptr;
+	}
+	*tev_ptr = tev;
+	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
+	m_event_data->m_timer_task_set->insert(std::move(std::make_pair(tev, task)));
+	return tev;
+}
+int MainProcess::resetTimerTask(event* timer_ev, const timeval& tv) {
+	if (timer_ev == nullptr) return -1;
+	if (tv.tv_sec == 0 && tv.tv_usec == 0) return -1;
+	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
+	if (m_event_data->m_timer_task_set->find(timer_ev) != m_event_data->m_timer_task_set->end()) {
+		event_del(timer_ev);
+		evtimer_add(timer_ev, &tv);
+	}
+	else {
+		return -1;
+	}
+	return 0;
+}
+int MainProcess::deleteTimerTask(event* timer_ev) {
+	if (timer_ev == nullptr) return -1;
+	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
+	if (m_event_data->m_timer_task_set->find(timer_ev) != m_event_data->m_timer_task_set->end()) {
+		m_event_data->m_timer_task_set->erase(timer_ev);
+		event_free(timer_ev);
+		timer_ev = nullptr;
+	}
+	else {
+		return -1;
+	}
+	return 0;
 }
 
 MainProcess::MainProcess(int argc, char** argv) {
@@ -421,43 +471,6 @@ int MainProcess::loadDir(const string& dir_path) {
 	}
 	if (access(dir_path.c_str(), F_OK | R_OK | X_OK) != 0) {
 		loger.error() << "Unable to access " << dir_path << ", folder does not exist or permission deny.";
-		return -1;
-	}
-	return 0;
-}
-event* MainProcess::addTimerTask(const TimeVal& time, const std::function<void()>& task) {
-	timeval tv = time;
-	event* tev = nullptr;
-	if (tv.tv_sec == 0 && tv.tv_usec == 0) return tev;
-	tev = evtimer_new(m_event_data->m_timer_base, TimerEventCB, this);
-	if (tev == nullptr) return tev;
-	evtimer_add(tev, &tv);
-	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
-	m_event_data->m_timer_task_set->insert(std::move(std::make_pair(tev, task)));
-	return tev;
-}
-int MainProcess::resetTimerTask(event* timer_ev, const timeval& tv) {
-	if (timer_ev == nullptr) return -1;
-	if (tv.tv_sec == 0 && tv.tv_usec == 0) return -1;
-	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
-	if (m_event_data->m_timer_task_set->find(timer_ev) != m_event_data->m_timer_task_set->end()) {
-		event_del(timer_ev);
-		evtimer_add(timer_ev, &tv);
-	}
-	else {
-		return -1;
-	}
-	return 0;
-}
-int MainProcess::deleteTimerTask(event* timer_ev) {
-	if (timer_ev == nullptr) return -1;
-	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
-	if (m_event_data->m_timer_task_set->find(timer_ev) != m_event_data->m_timer_task_set->end()) {
-		m_event_data->m_timer_task_set->erase(timer_ev);
-		event_free(timer_ev);
-		timer_ev = nullptr;
-	}
-	else {
 		return -1;
 	}
 	return 0;
