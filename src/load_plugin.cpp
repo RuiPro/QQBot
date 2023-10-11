@@ -4,7 +4,7 @@
 LoadedPlugin::LoadedPlugin(const string& plugin_path, const string& app_path) {
 	m_handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
 	if (m_handle == nullptr) {
-		loger.error() << "Open plugin failed: " << dlerror();
+		loger.error() << "Load plugin failed: " << dlerror();
 		m_plugin_status = Bad_Plugin;
 		return;
 	}

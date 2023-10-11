@@ -7,11 +7,7 @@
 #include <json.hpp>
 using json = nlohmann::json;
 
-// 创建Bot实例
 ThisBot* ThisBot::sm_bot;
-void createBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache = true) {
-	ThisBot::sm_bot = new ThisBot(cqhttp_addr, cqhttp_access_token, m_cqhttp_use_cache);
-}
 
 // curl 回调函数
 size_t curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {

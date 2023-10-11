@@ -166,6 +166,13 @@ int ThreadPool::getMinThreadNum() const {
 int ThreadPool::getMaxTaskNum() const {
     return this->m_max_task_num;
 }
+int ThreadPool::getAliveThreadNum() const {
+    return this->m_alive_thread_num;
+}
+int ThreadPool::getWorkingThreadNum() const{
+    return this->m_working_thread_num;
+}
+
 
 WorkerThread::WorkerThread(ThreadPool* pool) {
     this->m_pool = pool;

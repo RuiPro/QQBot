@@ -30,6 +30,8 @@ public:
 	int getMaxThreadNum() const;
 	int getMinThreadNum() const;
 	int getMaxTaskNum() const;
+	int getAliveThreadNum() const;
+	int getWorkingThreadNum() const;
 
 private:
 	int m_max_thread_num;                         // 线程池内能达到的最大线程数量

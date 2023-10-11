@@ -9,14 +9,25 @@
 #include <map>
 #include <mutex>
 #include <condition_variable>
-#include <time.h>
+#include <sys/time.h>
 class ThreadPool;
 class LoadedPlugin;
 using namespace std;
 
+struct TimeVal {
+	unsigned long second = 0;
+	unsigned long microsecond = 0;
+	operator timeval () const {
+		timeval ret;
+		ret.tv_sec = second;
+		ret.tv_usec = microsecond;
+		return ret;
+	}
+};
+
 // 存放libevent的相关数据
 struct EventData;
-struct TimerEvent;
+struct event;
 
 #ifndef evutil_socket_t
 #define evutil_socket_t int
@@ -26,11 +37,20 @@ class MainProcess {
 	friend void HTTPRequestCB(struct evhttp_request* req, void* cb_arg);
 	friend void TimerEventCB(evutil_socket_t fd, short event_t, void* cb_arg);
 public:
+	MainProcess() = delete;
 	MainProcess(const MainProcess&) = delete;
 	MainProcess(MainProcess&&) = delete;
 	MainProcess& operator=(const MainProcess&) = delete;
 	~MainProcess();
-	
+
+	void exec();								// 执行事件循环
+
+	// 添加定时器任务，成功返回事件指针，失败返回nullptr
+	event* addTimerTask(const TimeVal& time, const std::function<void()>& task);
+	int resetTimerTask(event* timer_ev, const timeval& tv);
+	// 取消定时器任务&释放定时器资源
+	int deleteTimerTask(event* timer_ev);
+
 	static void initMainProcessObj(int argc, char** argv) {
 		static once_flag init_of;
 		call_once(init_of, [&]() { sm_process = new MainProcess(argc, argv); });
@@ -38,14 +58,6 @@ public:
 	static MainProcess* getMainProcessObj() {
 		return sm_process;
 	}
-
-	void exec();								// 执行事件循环
-
-	// 添加定时器任务，成功返回事件指针，失败返回nullptr
-	TimerEvent addTimerTask(const timeval& tv, const std::function<void()>& task);
-	int resetTimerTask(const TimerEvent& timer_ev, const timeval& tv);
-	// 取消定时器任务&释放定时器资源
-	int deleteTimerTask(TimerEvent& timer_ev);
 
 private:
 	bool is_running = false;
@@ -70,7 +82,7 @@ private:
 
 	// 单例模式-主程序构造
 	MainProcess(int argc, char** argv);
-	static MainProcess* sm_process;
+	static MainProcess * sm_process;
 
 	string getPath();							// 找到程序所在的路径
 	int configFileInit();						// 如果没有配置文件，创建并初始化配置文件

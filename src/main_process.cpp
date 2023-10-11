@@ -20,7 +20,7 @@ using namespace std;
 using json = nlohmann::json;
 #include "main_process.h"
 
-MainProcess* MainProcess::sm_process = nullptr;
+MainProcess* MainProcess::sm_process;
 
 struct EventData {
 	event_base* m_http_base = nullptr;		// http io事件树
@@ -28,9 +28,6 @@ struct EventData {
 	evhttp* m_ev_httpd = nullptr;			// http监测事件
 	map<event*, std::function<void()>>* m_timer_task_set = nullptr;	// 保存定时器任务的哈希表
 	mutex m_timer_task_set_mutex;			// 定时器任务哈希表锁
-};
-struct TimerEvent {
-	event* timer_ev = nullptr;
 };
 
 void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
@@ -122,16 +119,19 @@ MainProcess::MainProcess(int argc, char** argv) {
 	// 检查配置文件是否存在
 	if (configFileInit() != 0) exit(0);
 	// 解析配置文件
+	loger.info() << "Checking config file...";
 	if (analysisConfig() != 0) exit(0);
 	// 初始化数据
+	loger.info() << "Initialize ThreadPool...";
 	m_thread_pool = new ThreadPool(0, m_thread_pool_max_thread_num, m_thread_pool_max_task_num,
 		m_thread_pool_adjust_range, m_thread_pool_manager_interval);
 	m_thread_pool->start();
+	loger.info() << "Initialize data...";
 	m_msg_queue = new queue<string>;
 	m_plugins_list = new vector<LoadedPlugin*>;
 	m_event_data = new EventData;
 	// 实例化Bot对象
-	createBot(m_cqhttp_addr, m_access_token, m_use_cache);
+	ThisBot::createBot(m_cqhttp_addr, m_access_token, m_use_cache);
 	// 获取Cqhttp和Bot对象的信息并输出
 	loger.info() << "Using go-cqhttp version: " << QQBot.queryCqhttpVersion();
 	if (QQBot.fetchThisBotBasicInfo() != 0) exit(0);
@@ -147,15 +147,20 @@ MainProcess::MainProcess(int argc, char** argv) {
 		QQBot.fetchThisBotGroupMemberList(element);
 	}
 	// 加载插件
+	loger.info() << "Loading plugins...";
 	if (loadDir(m_app_path + "plugins/") != 0) exit(0);
 	if (loadPlugins() != 0) exit(0);
 	loger.info() << "Load plugins: " << m_plugins_list->size();
 }
 MainProcess::~MainProcess() {
-	cout << "\033[31m\033[1m" << "\nProgram exiting..." << "\033[0m" << endl;
+	loger.info() << "\033[31m\033[1mProgram exiting...\033[0m";
+	loger.info() << "\033[31m\033[1mExiting httpd loop...\033[0m";
 	event_base_loopbreak(m_event_data->m_http_base);
+	loger.info() << "\033[31m\033[1mExiting timer loop...\033[0m";
 	event_base_loopbreak(m_event_data->m_timer_base);
 	evhttp_free(m_event_data->m_ev_httpd);
+	event_base_free(m_event_data->m_http_base);
+	event_base_free(m_event_data->m_timer_base);
 	if (m_event_data->m_timer_task_set != nullptr) {
 		unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
 		for (auto iter = m_event_data->m_timer_task_set->begin(); iter != m_event_data->m_timer_task_set->end(); iter++) {
@@ -165,11 +170,16 @@ MainProcess::~MainProcess() {
 		}
 		delete m_event_data->m_timer_task_set;
 	}
-	event_base_free(m_event_data->m_http_base);
-	event_base_free(m_event_data->m_timer_base);
+	loger.info() << "\033[31m\033[1mClosing ThreadPool...\033[0m";
+	is_running = false;
+	std::queue<string> empty;
+	m_msg_queue->swap(empty);
+	m_msg_queue_cv.notify_all();
 	if (m_thread_pool != nullptr) delete m_thread_pool;
+	loger.info() << "\033[31m\033[1mRelease resources...\033[0m";
 	if (m_msg_queue != nullptr) delete m_msg_queue;
 	if (m_event_data != nullptr) delete m_event_data;
+	loger.info() << "\033[31m\033[1mUninstalling plugins...\033[0m";
 	if (m_plugins_list != nullptr) {
 		for (auto& plugin : *m_plugins_list) {
 			delete plugin;
@@ -415,36 +425,37 @@ int MainProcess::loadDir(const string& dir_path) {
 	}
 	return 0;
 }
-TimerEvent MainProcess::addTimerTask(const timeval& tv, const std::function<void()>& task) {
-	TimerEvent tev;
+event* MainProcess::addTimerTask(const TimeVal& time, const std::function<void()>& task) {
+	timeval tv = time;
+	event* tev = nullptr;
 	if (tv.tv_sec == 0 && tv.tv_usec == 0) return tev;
-	tev.timer_ev = evtimer_new(m_event_data->m_timer_base, TimerEventCB, this);
-	if (tev.timer_ev == nullptr) return tev;
-	evtimer_add(tev.timer_ev, &tv);
+	tev = evtimer_new(m_event_data->m_timer_base, TimerEventCB, this);
+	if (tev == nullptr) return tev;
+	evtimer_add(tev, &tv);
 	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
-	m_event_data->m_timer_task_set->insert(std::move(std::make_pair(tev.timer_ev, task)));
+	m_event_data->m_timer_task_set->insert(std::move(std::make_pair(tev, task)));
 	return tev;
 }
-int MainProcess::resetTimerTask(const TimerEvent& timer_ev, const timeval& tv) {
-	if (timer_ev.timer_ev == nullptr) return -1;
+int MainProcess::resetTimerTask(event* timer_ev, const timeval& tv) {
+	if (timer_ev == nullptr) return -1;
 	if (tv.tv_sec == 0 && tv.tv_usec == 0) return -1;
 	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
-	if (m_event_data->m_timer_task_set->find(timer_ev.timer_ev) != m_event_data->m_timer_task_set->end()) {
-		event_del(timer_ev.timer_ev);
-		evtimer_add(timer_ev.timer_ev, &tv);
+	if (m_event_data->m_timer_task_set->find(timer_ev) != m_event_data->m_timer_task_set->end()) {
+		event_del(timer_ev);
+		evtimer_add(timer_ev, &tv);
 	}
 	else {
 		return -1;
 	}
 	return 0;
 }
-int MainProcess::deleteTimerTask(TimerEvent& timer_ev) {
-	if (timer_ev.timer_ev == nullptr) return -1;
+int MainProcess::deleteTimerTask(event* timer_ev) {
+	if (timer_ev == nullptr) return -1;
 	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
-	if (m_event_data->m_timer_task_set->find(timer_ev.timer_ev) != m_event_data->m_timer_task_set->end()) {
-		m_event_data->m_timer_task_set->erase(timer_ev.timer_ev);
-		event_free(timer_ev.timer_ev);
-		timer_ev.timer_ev = nullptr;
+	if (m_event_data->m_timer_task_set->find(timer_ev) != m_event_data->m_timer_task_set->end()) {
+		m_event_data->m_timer_task_set->erase(timer_ev);
+		event_free(timer_ev);
+		timer_ev = nullptr;
 	}
 	else {
 		return -1;
@@ -533,14 +544,19 @@ void MainProcess::corePlugin(const string& msg) {
 	}
 }
 void MainProcess::handOutMsg() {
-	unique_lock<mutex> locker(m_msg_queue_mutex);
-	while (msgQueueIsEmpty()) {
-		m_msg_queue_cv.wait(locker);
-	}
-	string a_msg;
-	if (msgQueueGet(a_msg) != 0) return;
-	m_thread_pool->addTask(&MainProcess::corePlugin, this, a_msg);
-	for (auto& plugin : *m_plugins_list) {
-		m_thread_pool->addTask((void(BasicPlugin::*)(const string&)) & BasicPlugin::pluginMain, plugin->getBasicPlugin(), a_msg);
+	while (true) {
+		unique_lock<mutex> locker(m_msg_queue_mutex);
+		while (msgQueueIsEmpty()) {
+			m_msg_queue_cv.wait(locker);
+			if (!is_running) {
+				return;
+			}
+		}
+		string a_msg;
+		if (msgQueueGet(a_msg) != 0) return;
+		m_thread_pool->addTask(&MainProcess::corePlugin, this, a_msg);
+		for (auto& plugin : *m_plugins_list) {
+			m_thread_pool->addTask((void(BasicPlugin::*)(const string&)) & BasicPlugin::pluginMain, plugin->getBasicPlugin(), a_msg);
+		}
 	}
 }
