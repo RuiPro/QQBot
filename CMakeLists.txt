@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.8)
-set(CMAKE_BUILD_TYPE "Debug")           # 设置模式
+set(CMAKE_BUILD_TYPE "Release")           # 设置模式
 set(CMAKE_CXX_STANDARD 11)
 project ("QQBot" CXX C)
 # set(CMAKE_EXE_LINKER_FLAGS "-rdynamic ${CMAKE_EXE_LINKER_FLAGS}")
