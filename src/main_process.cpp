@@ -1,16 +1,153 @@
-#include <unistd.h>
-#include <chrono>
-#include <iostream>
-#include <stdlib.h>
-#include <fstream>
 #include <curl.h>
+#include <event.h>
+#include <evhttp.h>
+#include <event2/thread.h>
+#include <sqlite3.h>
+#include <json.hpp>
+
+#include <fstream>
+#include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <chrono>
 #include <dirent.h>
 #include <sys/stat.h>
-#include "main_process.h"
-#include "functions.h"
+#include "ThreadPool/thread_pool.hpp"
+#include "QQ/QQ.h"
+#include "load_plugin.h"
+#include "Loger/loger.h"
 using namespace std;
 using json = nlohmann::json;
+#include "main_process.h"
+
+MainProcess* MainProcess::sm_process;
+
+struct EventData {
+	event_base* m_http_base = nullptr;		// http io事件树
+	event_base* m_timer_base = nullptr;		// 计时器事件树
+	evhttp* m_ev_httpd = nullptr;			// http监测事件
+	map<event*, std::function<void()>>* m_timer_task_set = nullptr;	// 保存定时器任务的哈希表
+	mutex m_timer_task_set_mutex;			// 定时器任务哈希表锁
+};
+
+void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
+	try {
+		auto startTime = chrono::system_clock::now();
+		MainProcess* arg = (MainProcess*)cb_arg;
+		if (evhttp_request_get_command(req) == EVHTTP_REQ_GET) {
+			evbuffer* send_buffer = evhttp_request_get_output_buffer(req);
+			evbuffer_add_printf(send_buffer, "{}");
+			evhttp_send_reply(req, HTTP_OK, "OK", send_buffer);
+			evbuffer_free(send_buffer);
+		}
+		else {
+			evkeyvalq* headers = evhttp_request_get_input_headers(req);
+			ssize_t Content_Length = stoi(evhttp_find_header(headers, "Content-Length"));
+			evbuffer* recv_buffer = evhttp_request_get_input_buffer(req);
+			const ssize_t recv_size = evbuffer_get_length(recv_buffer);
+			char* recv_data = new char[recv_size + 1] {};
+			ssize_t counter = 0;
+			while (recv_size > counter) {
+				ssize_t once_size = evbuffer_remove(recv_buffer, recv_data, recv_size);
+				if (once_size == -1) {
+					loger.error() << "Failed to get data from input buffer!";
+					return;
+				}
+				else {
+					counter += once_size;
+				}
+			}
+			evbuffer* send_buffer = evhttp_request_get_output_buffer(req);
+			evbuffer_add_printf(send_buffer, "{}");
+			evhttp_add_header(req->output_headers, "Content-Type", "application/json");
+			evhttp_send_reply(req, HTTP_OK, "OK", send_buffer);
+			// evbuffer_free(send_buffer);	无需手动释放，evhttp_send_reply已经自动释放了
+
+			if (Content_Length == recv_size) {
+				// 处理数据入口
+				json data = json::parse(recv_data);
+				do {
+					if (data["self_id"] != QQBot.getThisBotID()) {
+						loger.warn() << "Received messages from other QQ bots, ignored.";
+						break;
+					}
+					if (data["self_id"] == "meta_event" && data["meta_event_type"] == "heartbeat") {
+						break;
+					}
+					unique_lock<mutex> locker(arg->m_msg_queue_mutex);
+					arg->msgQueueAdd(std::move(string(recv_data)));
+					locker.unlock();
+					arg->m_msg_queue_cv.notify_one();
+				} while (false);
+			}
+			else {
+				loger.warn() << "The size of data received doesn't match client report.";
+			}
+			delete[] recv_data;
+			chrono::duration<double> runTime = chrono::system_clock::now() - startTime;
+			auto runTimeCount = runTime.count();
+			if (runTimeCount > 4.75) {
+				loger.warn() << "HTTPRequestCB run time: " << runTimeCount << " is longer than 5s.";
+			}
+		}
+	}
+	catch (...) {
+		loger.error() << "Libevent's evhttp callback function HTTPRequestCB Exception.";
+	}
+}
+void TimerEventCB(evutil_socket_t fd, short event_t, void* cb_arg) {
+	event* ev = *(static_cast<event**>(cb_arg));
+	if (cb_arg != nullptr) delete static_cast<event**>(cb_arg);
+	auto iter = Process.m_event_data->m_timer_task_set->find(ev);
+	if (iter != Process.m_event_data->m_timer_task_set->end()) {
+		Process.m_thread_pool->addTask(iter->second);
+		unique_lock<mutex> locker(Process.m_event_data->m_timer_task_set_mutex);
+		Process.m_event_data->m_timer_task_set->erase(ev);
+	}
+}
+
+event* MainProcess::addTimerTask(const TimeVal& time, const std::function<void()>& task) {
+	timeval tv = time;
+	event* tev = nullptr;
+	if (tv.tv_sec == 0 && tv.tv_usec == 0) return tev;
+	event** tev_ptr = new event*(nullptr);
+	tev = evtimer_new(m_event_data->m_timer_base, TimerEventCB, tev_ptr);
+	if (tev == nullptr) return tev;
+	if (evtimer_add(tev, &tv) == -1) {
+		loger.error() << "Add timer task error.";
+		return nullptr;
+	}
+	*tev_ptr = tev;
+	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
+	m_event_data->m_timer_task_set->insert(std::move(std::make_pair(tev, task)));
+	return tev;
+}
+int MainProcess::resetTimerTask(event* timer_ev, const timeval& tv) {
+	if (timer_ev == nullptr) return -1;
+	if (tv.tv_sec == 0 && tv.tv_usec == 0) return -1;
+	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
+	if (m_event_data->m_timer_task_set->find(timer_ev) != m_event_data->m_timer_task_set->end()) {
+		event_del(timer_ev);
+		evtimer_add(timer_ev, &tv);
+	}
+	else {
+		return -1;
+	}
+	return 0;
+}
+int MainProcess::deleteTimerTask(event* timer_ev) {
+	if (timer_ev == nullptr) return -1;
+	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
+	if (m_event_data->m_timer_task_set->find(timer_ev) != m_event_data->m_timer_task_set->end()) {
+		m_event_data->m_timer_task_set->erase(timer_ev);
+		event_free(timer_ev);
+		timer_ev = nullptr;
+	}
+	else {
+		return -1;
+	}
+	return 0;
+}
 
 MainProcess::MainProcess(int argc, char** argv) {
 	// 取出参数
@@ -32,15 +169,19 @@ MainProcess::MainProcess(int argc, char** argv) {
 	// 检查配置文件是否存在
 	if (configFileInit() != 0) exit(0);
 	// 解析配置文件
+	loger.info() << "Checking config file...";
 	if (analysisConfig() != 0) exit(0);
 	// 初始化数据
+	loger.info() << "Initialize ThreadPool...";
 	m_thread_pool = new ThreadPool(0, m_thread_pool_max_thread_num, m_thread_pool_max_task_num,
 		m_thread_pool_adjust_range, m_thread_pool_manager_interval);
 	m_thread_pool->start();
+	loger.info() << "Initialize data...";
 	m_msg_queue = new queue<string>;
 	m_plugins_list = new vector<LoadedPlugin*>;
+	m_event_data = new EventData;
 	// 实例化Bot对象
-	createBot(m_cqhttp_addr, m_access_token, m_use_cache);
+	ThisBot::createBot(m_cqhttp_addr, m_access_token, m_use_cache);
 	// 获取Cqhttp和Bot对象的信息并输出
 	loger.info() << "Using go-cqhttp version: " << QQBot.queryCqhttpVersion();
 	if (QQBot.fetchThisBotBasicInfo() != 0) exit(0);
@@ -56,21 +197,39 @@ MainProcess::MainProcess(int argc, char** argv) {
 		QQBot.fetchThisBotGroupMemberList(element);
 	}
 	// 加载插件
+	loger.info() << "Loading plugins...";
 	if (loadDir(m_app_path + "plugins/") != 0) exit(0);
 	if (loadPlugins() != 0) exit(0);
 	loger.info() << "Load plugins: " << m_plugins_list->size();
 }
-
 MainProcess::~MainProcess() {
-	cout << "\033[31m\033[1m" << "\nProgram exiting..." << "\033[0m" << endl;
-	event_base_loopbreak(m_ev_thread_base);
-	event_base_loopbreak(m_ev_main_base);
-	evhttp_free(m_ev_http);
-	event_free(m_ev_timer);
-	event_base_free(m_ev_main_base);
-	event_base_free(m_ev_thread_base);
+	loger.info() << "\033[31m\033[1mProgram exiting...\033[0m";
+	loger.info() << "\033[31m\033[1mExiting httpd loop...\033[0m";
+	event_base_loopbreak(m_event_data->m_http_base);
+	loger.info() << "\033[31m\033[1mExiting timer loop...\033[0m";
+	event_base_loopbreak(m_event_data->m_timer_base);
+	evhttp_free(m_event_data->m_ev_httpd);
+	event_base_free(m_event_data->m_http_base);
+	event_base_free(m_event_data->m_timer_base);
+	if (m_event_data->m_timer_task_set != nullptr) {
+		unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
+		for (auto iter = m_event_data->m_timer_task_set->begin(); iter != m_event_data->m_timer_task_set->end(); iter++) {
+			if (iter->first != nullptr) {
+				delete iter->first;
+			}
+		}
+		delete m_event_data->m_timer_task_set;
+	}
+	loger.info() << "\033[31m\033[1mClosing ThreadPool...\033[0m";
+	is_running = false;
+	std::queue<string> empty;
+	m_msg_queue->swap(empty);
+	m_msg_queue_cv.notify_all();
 	if (m_thread_pool != nullptr) delete m_thread_pool;
+	loger.info() << "\033[31m\033[1mRelease resources...\033[0m";
 	if (m_msg_queue != nullptr) delete m_msg_queue;
+	if (m_event_data != nullptr) delete m_event_data;
+	loger.info() << "\033[31m\033[1mUninstalling plugins...\033[0m";
 	if (m_plugins_list != nullptr) {
 		for (auto& plugin : *m_plugins_list) {
 			delete plugin;
@@ -78,27 +237,23 @@ MainProcess::~MainProcess() {
 		delete m_plugins_list;
 	}
 }
-
 void MainProcess::exec() {
+	if (is_running) return;
+	is_running = true;
 	evthread_use_pthreads();
+	m_event_data->m_timer_task_set = new map<event*, std::function<void()>>;
+	// 在子线程中执行消息分发
+	m_thread_pool->addTask(&MainProcess::handOutMsg, this);
 	// 在子线程中执行HTTP请求事件循环，把收到的数据放在数据队列中
-	m_ev_thread_base = event_base_new();
-	m_ev_http = evhttp_new(m_ev_thread_base);
-	evhttp_bind_socket(m_ev_http, "0.0.0.0", m_bind_port);
-	evhttp_set_cb(m_ev_http, "/", HTTPRequestCB, this);
-	m_thread_pool->addTask(event_base_dispatch, m_ev_thread_base);
-
-	// 在主线程中执数据处理事件循环
-	m_ev_main_base = event_base_new();
-	while (true) {
-		m_ev_timer = evtimer_new(m_ev_main_base, TickEventCB, this);
-		struct timeval tv = { 0, 100000 / m_TPS };
-		evtimer_add(m_ev_timer, &tv);
-		event_base_dispatch(m_ev_main_base);
-		event_free(m_ev_timer);
-	}
+	m_event_data->m_http_base = event_base_new();
+	m_event_data->m_ev_httpd = evhttp_new(m_event_data->m_http_base);
+	evhttp_bind_socket(m_event_data->m_ev_httpd, "0.0.0.0", m_bind_port);
+	evhttp_set_cb(m_event_data->m_ev_httpd, "/", HTTPRequestCB, this);
+	m_thread_pool->addTask(event_base_dispatch, m_event_data->m_http_base);
+	// 在主线程中执数据处理计时器事件
+	m_event_data->m_timer_base = event_base_new();
+	event_base_loop(m_event_data->m_timer_base, EVLOOP_NO_EXIT_ON_EMPTY);
 }
-
 string MainProcess::getPath() {
 	char* argv0 = m_argv[0];
 	string env_path;
@@ -133,7 +288,6 @@ string MainProcess::getPath() {
 	}
 	return env_path;
 }
-
 int MainProcess::configFileInit() {
 	string config_path = m_app_path + "config.json";
 	ifstream f;
@@ -147,7 +301,6 @@ int MainProcess::configFileInit() {
 			exit(0);
 		}
 		new_file << R"({
-	"TPS": 20,
 	"use_cache": true,
 	"bind_port": 12345,
 	"go-cqhttp_IP": "127.0.0.1",
@@ -171,7 +324,6 @@ int MainProcess::configFileInit() {
 	f.close();
 	return 0;
 }
-
 int MainProcess::analysisConfig() {
 	string config_path = m_app_path + "config.json";
 	ifstream config_file(config_path);
@@ -186,8 +338,7 @@ int MainProcess::analysisConfig() {
 			loger.error() << "Cann't get json from config.json.";
 			exit(0);
 		}
-		if (config.find("TPS") == config.end() ||
-			config.find("use_cache") == config.end() ||
+		if (config.find("use_cache") == config.end() ||
 			config.find("bind_port") == config.end() ||
 			config.find("go-cqhttp_IP") == config.end() ||
 			config.find("go-cqhttp_port") == config.end() ||
@@ -203,7 +354,6 @@ int MainProcess::analysisConfig() {
 			loger.error() << "You may be able to delete config.json and reconfigure it.";
 			return -1;
 		}
-		m_TPS = config["TPS"];
 		m_use_cache = config["use_cache"];
 		m_bind_port = config["bind_port"];
 		string cqhttp_IP = config["go-cqhttp_IP"];
@@ -214,7 +364,7 @@ int MainProcess::analysisConfig() {
 		m_thread_pool_manager_interval = config["thread_pool"]["manager_interval"];
 		m_auto_add_friend = config["CorePlugin"]["auto_add_friend"];
 		m_auto_join_group = config["CorePlugin"]["auto_join_group"];
-		if (m_TPS <= 0 || cqhttp_IP.empty() || cqhttp_port == 0 || m_bind_port == 0 || m_thread_pool_max_thread_num < 0 ||
+		if (cqhttp_IP.empty() || cqhttp_port == 0 || m_bind_port == 0 || m_thread_pool_max_thread_num < 0 ||
 			m_thread_pool_max_task_num <= 0 || m_thread_pool_adjust_range <= 0 || m_thread_pool_manager_interval < 0) {
 			loger.error() << "Invalid config value found! Please check the config.json.";
 			exit(0);
@@ -241,28 +391,28 @@ int MainProcess::analysisConfig() {
 		return -1;
 	}
 }
-
 int MainProcess::msgQueueAdd(const string& msg) {
 	if (m_msg_queue == nullptr) return -1;
-	m_msg_queue_mutex.lock();
 	m_msg_queue->push(msg);
-	m_msg_queue_mutex.unlock();
 	return 0;
 }
-
+int MainProcess::msgQueueAdd(string&& msg) {
+	if (m_msg_queue == nullptr) return -1;
+	m_msg_queue->push(std::move(msg));
+	return 0;
+}
 int MainProcess::msgQueueGet(string& msg) {
 	if (m_msg_queue == nullptr) return -1;
-	m_msg_queue_mutex.lock();
 	if (m_msg_queue->empty()) {
-		m_msg_queue_mutex.unlock();
 		return -1;
 	}
 	msg = m_msg_queue->front();
 	m_msg_queue->pop();
-	m_msg_queue_mutex.unlock();
 	return 0;
 }
-
+bool MainProcess::msgQueueIsEmpty() {
+	return m_msg_queue->empty();
+}
 int MainProcess::loadPlugins() {
 	// 加载plugins文件夹下的插件
 	string plugins_dir_path = m_app_path + "plugins/";
@@ -297,7 +447,6 @@ int MainProcess::loadPlugins() {
 	closedir(dir);
 	return 0;
 }
-
 int MainProcess::loadDir(const string& dir_path) {
 	// 判断文件夹是否存在
 	struct stat plugins_dir_info;
@@ -325,4 +474,102 @@ int MainProcess::loadDir(const string& dir_path) {
 		return -1;
 	}
 	return 0;
+}
+void MainProcess::corePlugin(const string& msg) {
+	try {
+		json QQevent = json::parse(msg, NULL, false);
+		if (QQevent["post_type"] == "notice") {
+			// 群变动时更新群列表，包括群内人数改变（包括Bot加群退群）
+			if (QQevent["notice_type"] == "group_decrease" || QQevent["notice_type"] == "group_increase") {
+				if (QQevent["user_id"] == QQBot.getThisBotID()) {	// 如果是Bot加群退群，更新bot群列表
+					loger.info() << "QQBot group list changed.";
+					QQBot.fetchThisBotGroupList();
+					QQBot.printGroupList();
+				}
+				else {
+					if (QQBot.fetchThisBotGroupMemberList(QQevent["group_id"]) == 0) {	// 如果是其他群，更新对应群即可
+						loger.info() << "QQBot group " << QQevent["group_id"] << " updated.";
+					}
+				}
+			}
+			// 群成员信息变动
+			if (QQevent["notice_type"] == "group_admin") {
+				if (QQBot.fetchThisBotGroupMemberList(QQevent["group_id"]) == 0) {
+					loger.info() << "QQBot group " << QQevent["group_id"] << " updated.";
+				}
+			}
+			if (QQevent["notice_type"] == "notify" && QQevent["sub_type"] == "title") {
+				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
+					loger.info() << "QQGroupMember " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " updated.";
+				}
+			}
+			if (QQevent["notice_type"] == "group_card") {
+				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
+					loger.info() << "QQGroupMember " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " updated.";
+				}
+			}
+			// 好友变动时更新好友列表
+			if (QQevent["notice_type"] == "friend_add") {
+				loger.info() << "QQBot friend list changed.";
+				QQBot.fetchThisBotFriendList();
+				QQBot.fetchThisBotUFriendList();
+				QQBot.printFriendList();
+				QQBot.printUFriendList();
+			}
+			// 群内名片、头衔改变
+			if (QQevent["notice_type"] == "group_card") {
+				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
+					loger.info() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information updated.";
+				}
+				else {
+					loger.warn() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information update failed!";
+				}
+			}
+			if (QQevent["notice_type"] == "notify" && QQevent["sub_type"] == "title") {
+				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
+					loger.info() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information updated.";
+				}
+				else {
+					loger.warn() << "Member " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " information update failed!";
+				}
+			}
+		}
+		// 加群、加好友
+		if (QQevent["post_type"] == "request") {
+			if (QQevent["request_type"] == "friend") {
+				loger.info() << QQevent["user_id"] << " requests to add bot as a friend: " << QQevent["comment"];
+				if (m_auto_add_friend) {
+					QQBot.applyAddFriendRequest(QQevent["flag"], true, "");
+					loger.info() << "Automatically added friend " << QQevent["user_id"];
+				}
+			}
+			if (QQevent["request_type"] == "group" && QQevent["sub_type"] == "invite") {
+				loger.info() << "bot is invited to join group " << QQevent["group_id"];
+				if (m_auto_join_group) {
+					QQBot.applyAddGroupRequest(QQevent["flag"], QQevent["sub_type"], true, "");
+					loger.info() << "Automatically join group " << QQevent["group_id"];
+				}
+			}
+		}
+	}
+	catch (...) {
+		loger.error() << "corePlugin Exception.";
+	}
+}
+void MainProcess::handOutMsg() {
+	while (true) {
+		unique_lock<mutex> locker(m_msg_queue_mutex);
+		while (msgQueueIsEmpty()) {
+			m_msg_queue_cv.wait(locker);
+			if (!is_running) {
+				return;
+			}
+		}
+		string a_msg;
+		if (msgQueueGet(a_msg) != 0) return;
+		m_thread_pool->addTask(&MainProcess::corePlugin, this, a_msg);
+		for (auto& plugin : *m_plugins_list) {
+			m_thread_pool->addTask((void(BasicPlugin::*)(const string&)) & BasicPlugin::pluginMain, plugin->getBasicPlugin(), a_msg);
+		}
+	}
 }

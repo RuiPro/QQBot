@@ -100,11 +100,8 @@ public:
 	unsigned int m_group_level = 0;			// 群等级
 };
 
-void createBot(const string&, const string&, bool);
-
 // 用于绑定一个go-cqhttp登录的QQ号，单例
 class ThisBot {
-	friend void createBot(const string&, const string&, bool);
 public:
 	~ThisBot();
 	ThisBot(const ThisBot&) = delete;
@@ -209,6 +206,10 @@ public:
 	int applySendGroupNotice(unsigned int group_id, const string& content, const string& image_url);				// 发送群公告
 	int applyKickGroupMember(unsigned int group_id, unsigned int member_id, bool allow_join_again = true);	// 踢出成员
 	
+	static void createBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache = true) {
+		static once_flag qq_of;
+		call_once(qq_of, [&]() {ThisBot::sm_bot = new ThisBot(cqhttp_addr, cqhttp_access_token, m_cqhttp_use_cache); });
+	}
 	static ThisBot* getThisBotObj(){
 		return ThisBot::sm_bot;	
 	};

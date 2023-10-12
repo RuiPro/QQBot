@@ -29,8 +29,7 @@ public:
 	string getPluginOtherInfo();
 	// 加载插件时执行
 	void loading();
-	// 插件主体，每个Tick执行一次：可以传入从go-cqhttp获取的json信息
-	void pluginMain();
+	// 插件主体，传入从go-cqhttp获取的json信息
 	void pluginMain(const string& msg);
 	BasicPlugin* getBasicPlugin();
 private:

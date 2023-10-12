@@ -4,7 +4,7 @@
 string Loger::sm_error_tag = " \033[31mError\033[0m]";
 string Loger::sm_warn_tag = " \033[33mWarn\033[0m] ";
 string Loger::sm_info_tag = " \033[34mInfo\033[0m] ";
-string Loger::sm_debug_tag = " \033[43;37mDebug\033[0m]";
+string Loger::sm_debug_tag = " \033[32mDebug\033[0m]";
 
 string getSystemTime() {
 	time_t now = time(nullptr);

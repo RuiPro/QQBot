@@ -7,11 +7,7 @@
 #include <json.hpp>
 using json = nlohmann::json;
 
-// 创建Bot实例
 ThisBot* ThisBot::sm_bot;
-void createBot(const string& cqhttp_addr, const string& cqhttp_access_token, bool m_cqhttp_use_cache = true) {
-	ThisBot::sm_bot = new ThisBot(cqhttp_addr, cqhttp_access_token, m_cqhttp_use_cache);
-}
 
 // curl 回调函数
 size_t curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
@@ -544,34 +540,32 @@ int ThisBot::fetchThisBotGroupMemberInfo(unsigned int group_id, unsigned int mem
 				+ " AND user_id="
 				+ to_string(member_id)
 				+ ";");
-			for (auto& element : json_data["data"]) {
-				SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,10,'%11',%12,%13,'%14',%15,%16);");
-				sql.args(1, element["user_id"]);
-				sql.args(2, element["group_id"]);
-				sql.args(3, element["nickname"]);
-				sql.args(4, element["age"]);
-				sql.args(5, element["area"]);
-				sql.args(6, element["sex"]);
-				sql.args(7, element["card"]);
-				sql.args(8, element["card_changeable"] == "false" ? "0" : "1");
-				sql.args(9, element["join_time"]);
-				sql.args(10, element["last_send_time"]);
-				sql.args(11, element["level"]);
-				if (element["user_id"] == "member") {
-					sql.args(12, "0");
-				}
-				else if (element["user_id"] == "admin") {
-					sql.args(12, "1");
-				}
-				else if (element["user_id"] == "owner") {
-					sql.args(12, "2");
-				}
-				sql.args(13, element["shut_up_timestamp"]);
-				sql.args(14, element["title"]);
-				sql.args(15, element["title_expire_time"]);
-				sql.args(16, element["unfriendly"] == "false" ? "0" : "1");
-				flag |= !sqlite_c->update(sql);
+			SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,10,'%11',%12,%13,'%14',%15,%16);");
+			sql.args(1, json_data["data"]["user_id"]);
+			sql.args(2, json_data["data"]["group_id"]);
+			sql.args(3, json_data["data"]["nickname"]);
+			sql.args(4, json_data["data"]["age"]);
+			sql.args(5, json_data["data"]["area"]);
+			sql.args(6, json_data["data"]["sex"]);
+			sql.args(7, json_data["data"]["card"]);
+			sql.args(8, json_data["data"]["card_changeable"] == "false" ? "0" : "1");
+			sql.args(9, json_data["data"]["join_time"]);
+			sql.args(10, json_data["data"]["last_send_time"]);
+			sql.args(11, json_data["data"]["level"]);
+			if (json_data["data"]["user_id"] == "member") {
+				sql.args(12, "0");
 			}
+			else if (json_data["data"]["user_id"] == "admin") {
+				sql.args(12, "1");
+			}
+			else if (json_data["data"]["user_id"] == "owner") {
+				sql.args(12, "2");
+			}
+			sql.args(13, json_data["data"]["shut_up_timestamp"]);
+			sql.args(14, json_data["data"]["title"]);
+			sql.args(15, json_data["data"]["title_expire_time"]);
+			sql.args(16, json_data["data"]["unfriendly"] == "false" ? "0" : "1");
+			flag |= !sqlite_c->update(sql);
 			if (flag) {
 				loger.warn() << "SQLite rollback in function fetchThisBotGroupMemberInfo.";
 				sqlite_c->rollback();
