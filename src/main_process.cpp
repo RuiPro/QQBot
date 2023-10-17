@@ -15,7 +15,7 @@
 #include "ThreadPool/thread_pool.hpp"
 #include "QQ/QQ.h"
 #include "load_plugin.h"
-#include "Loger/loger.h"
+#include "Loger/loger.hpp"
 using namespace std;
 using json = nlohmann::json;
 #include "main_process.h"
@@ -98,11 +98,11 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 void TimerEventCB(evutil_socket_t fd, short event_t, void* cb_arg) {
 	event* ev = *(static_cast<event**>(cb_arg));
 	if (cb_arg != nullptr) delete static_cast<event**>(cb_arg);
-	auto iter = Process.m_event_data->m_timer_task_set->find(ev);
-	if (iter != Process.m_event_data->m_timer_task_set->end()) {
-		Process.m_thread_pool->addTask(iter->second);
-		unique_lock<mutex> locker(Process.m_event_data->m_timer_task_set_mutex);
-		Process.m_event_data->m_timer_task_set->erase(ev);
+	auto iter = MainProc.m_event_data->m_timer_task_set->find(ev);
+	if (iter != MainProc.m_event_data->m_timer_task_set->end()) {
+		MainProc.m_thread_pool->addTask(iter->second);
+		unique_lock<mutex> locker(MainProc.m_event_data->m_timer_task_set_mutex);
+		MainProc.m_event_data->m_timer_task_set->erase(ev);
 	}
 }
 

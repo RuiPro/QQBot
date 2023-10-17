@@ -1,5 +1,5 @@
 #include "main_process.h"
-#include "Loger/loger.h"
+#include "Loger/loger.hpp"
 #include "QQ/QQ.h"
 #include <iostream>
 #include <csignal>
@@ -10,7 +10,7 @@ void signalHandler(int signal) {
 	if (!terminate_flag) {
 		terminate_flag = true;
 		std::cout << '\r';
-		delete ProcessPtr;
+		delete MainProcPtr;
 		delete QQBotPtr;
 		exit(signal);
 	}
@@ -22,6 +22,6 @@ void signalHandler(int signal) {
 int main(int argc, char** argv) {
     signal(SIGINT, signalHandler);
 	MainProcess::initMainProcessObj(argc, argv);
-	ProcessPtr->exec();
+	MainProcPtr->exec();
 	return 0;
 }

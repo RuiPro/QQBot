@@ -1,8 +1,6 @@
 #ifndef QQ_H
 #define QQ_H
 
-#define LIBQQ_VERSION "1.0.0"
-
 #include <string>
 #include <vector>
 #include <utility>

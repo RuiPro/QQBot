@@ -1,8 +1,6 @@
 #ifndef MAIN_PROCESS_H
 #define MAIN_PROCESS_H
 
-#define VERSION "1.0.1"
-
 #include <string>
 #include <vector>
 #include <queue>
@@ -100,7 +98,7 @@ private:
 	void handOutMsg();
 };
 
-#define Process (*MainProcess::getMainProcessObj())
-#define ProcessPtr MainProcess::getMainProcessObj()
+#define MainProc (*MainProcess::getMainProcessObj())
+#define MainProcPtr MainProcess::getMainProcessObj()
 
 #endif // !MAINPROCESS_H

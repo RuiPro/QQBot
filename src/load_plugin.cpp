@@ -1,5 +1,5 @@
 #include "load_plugin.h"
-#include "Loger/loger.h"
+#include "Loger/loger.hpp"
 
 LoadedPlugin::LoadedPlugin(const string& plugin_path, const string& app_path) {
 	m_handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
