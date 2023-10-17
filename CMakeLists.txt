@@ -22,14 +22,15 @@ add_executable (QQBot.app "src/main.cpp")
 
  # 自建库
  add_library(mainproc SHARED
- "src/ThreadPool/thread_pool.hpp"
- "src/ThreadPool/thread_pool.cpp"
+ "src/thread_pool.hpp"
+ "src/thread_pool.cpp"
  "src/main_process.cpp"
- "src/load_plugin.cpp")
- add_library(gadget SHARED "src/Gadget/all2str.cpp")
- add_library(loger SHARED "src/Loger/loger.hpp" "src/Loger/loger.cpp")
+ "src/load_plugin.cpp"
+ "src/all2str.cpp"
+ "src/format.cpp")
+ add_library(loger SHARED "src/loger.hpp" "src/loger.cpp")
  add_library(QQ SHARED "src/QQ/QQ_message.cpp" "src/QQ/QQ.cpp")
- add_library(sqlitec SHARED "src/SQLiteClient/sqlite_client.cpp" "src/SQLiteClient/sql.hpp")
+ add_library(sqlitec SHARED "src/sqlite_client.cpp")
 
  # 外部库头文件
 include_directories(${PROJECT_SOURCE_DIR}/include/json)
@@ -40,7 +41,6 @@ include_directories(${PROJECT_SOURCE_DIR}/include/libsqlite3)
 # 链接库
 target_link_libraries(sqlitec "${PROJECT_SOURCE_DIR}/lib/linux_amd64/libsqlite3/libsqlite3.so.0.8.6")
 target_link_libraries(QQBot.app mainproc)
-target_link_libraries(QQBot.app gadget)
 target_link_libraries(QQBot.app sqlitec)
 target_link_libraries(QQBot.app loger)
 target_link_libraries(QQBot.app QQ)

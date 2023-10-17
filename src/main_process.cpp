@@ -12,10 +12,10 @@
 #include <chrono>
 #include <dirent.h>
 #include <sys/stat.h>
-#include "ThreadPool/thread_pool.hpp"
+#include "thread_pool.hpp"
 #include "QQ/QQ.h"
 #include "load_plugin.h"
-#include "Loger/loger.hpp"
+#include "loger.hpp"
 using namespace std;
 using json = nlohmann::json;
 #include "main_process.h"

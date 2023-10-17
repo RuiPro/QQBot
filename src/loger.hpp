@@ -6,7 +6,7 @@
 #include <ctime>
 #include <mutex>
 #include <sstream>
-#include "../Gadget/all2str.h"
+#include "all2str.h"
 using namespace std;
 
 class BasicPlugin;

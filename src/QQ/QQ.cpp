@@ -1,8 +1,8 @@
 #include <curl.h>
 #include <chrono>
 #include "QQ_sql.h"
-#include "../SQLiteClient/sqlite_client.h"
-#include "../Loger/loger.hpp"
+#include "../sqlite_client.h"
+#include "../loger.hpp"
 #include "QQ.h"
 #include <json.hpp>
 using json = nlohmann::json;
@@ -56,8 +56,8 @@ QQFriend ThisBot::getThisBotAdmin() const {
 }
 int ThisBot::getThisBotFriendNum() const {
 	int ret = 0;
-	string SQL("SELECT COUNT(*) FROM friend_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT COUNT(*) FROM friend_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	sqlite_c->query_result->nextRow();
@@ -66,8 +66,8 @@ int ThisBot::getThisBotFriendNum() const {
 }
 int ThisBot::getThisBotUFriendNum() const {
 	int ret = 0;
-	string SQL("SELECT COUNT(*) FROM ufriend_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT COUNT(*) FROM ufriend_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	sqlite_c->query_result->nextRow();
@@ -76,8 +76,8 @@ int ThisBot::getThisBotUFriendNum() const {
 }
 int ThisBot::getThisBotGroupNum() const {
 	int ret = 0;
-	string SQL("SELECT COUNT(*) FROM group_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT COUNT(*) FROM group_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	sqlite_c->query_result->nextRow();
@@ -86,10 +86,10 @@ int ThisBot::getThisBotGroupNum() const {
 }
 int ThisBot::getGroupMemberNum(unsigned int group_id) const {
 	int ret = 0;
-	string SQL("SELECT COUNT(*) FROM group_member_list WHERE group_id=");
-	SQL.append(to_string(group_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT COUNT(*) FROM group_member_list WHERE group_id=");
+	sql.append(to_string(group_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	sqlite_c->query_result->nextRow();
@@ -97,49 +97,49 @@ int ThisBot::getGroupMemberNum(unsigned int group_id) const {
 	return ret;
 }
 bool ThisBot::getThisBotHasFriend(unsigned int friend_id) const {
-	string SQL("SELECT * FROM friend_list WHERE user_id=");
-	SQL.append(to_string(friend_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM friend_list WHERE user_id=");
+	sql.append(to_string(friend_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	return sqlite_c->query_result->nextRow();
 }
 bool ThisBot::getThisBotHasUFriend(unsigned int ufriend_id) const {
-	string SQL("SELECT * FROM ufriend_list WHERE user_id=");
-	SQL.append(to_string(ufriend_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM ufriend_list WHERE user_id=");
+	sql.append(to_string(ufriend_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	return sqlite_c->query_result->nextRow();
 }
 bool ThisBot::getThisBotHasGroup(unsigned int group_id) const {
-	string SQL("SELECT * FROM group_list WHERE group_id=");
-	SQL.append(to_string(group_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM group_list WHERE group_id=");
+	sql.append(to_string(group_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	return sqlite_c->query_result->nextRow();
 }
 bool ThisBot::getGroupHasMember(unsigned int group_id, unsigned int member_id) const {
-	string SQL("SELECT * FROM group_member_list WHERE group_id=");
-	SQL.append(to_string(group_id));
-	SQL.append(" AND user_id=");
-	SQL.append(to_string(member_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM group_member_list WHERE group_id=");
+	sql.append(to_string(group_id));
+	sql.append(" AND user_id=");
+	sql.append(to_string(member_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	return sqlite_c->query_result->nextRow();
 }
 QQFriend ThisBot::getThisBotFriend(unsigned int friend_id) const {
 	QQFriend f(0);
-	string SQL("SELECT * FROM friend_list WHERE user_id=");
-	SQL.append(to_string(friend_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM friend_list WHERE user_id=");
+	sql.append(to_string(friend_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	if (!sqlite_c->query_result->nextRow()) return f;
@@ -150,10 +150,10 @@ QQFriend ThisBot::getThisBotFriend(unsigned int friend_id) const {
 }
 QQUFriend ThisBot::getThisBotUFriend(unsigned int friend_id) const {
 	QQUFriend uf(0);
-	string SQL("SELECT * FROM ufriend_list WHERE user_id=");
-	SQL.append(to_string(friend_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM ufriend_list WHERE user_id=");
+	sql.append(to_string(friend_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	if (!sqlite_c->query_result->nextRow()) return uf;
@@ -164,10 +164,10 @@ QQUFriend ThisBot::getThisBotUFriend(unsigned int friend_id) const {
 }
 QQGroup ThisBot::getThisBotGroup(unsigned int group_id) const {
 	QQGroup g(0);
-	string SQL("SELECT * FROM group_list WHERE group_id=");
-	SQL.append(to_string(group_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM group_list WHERE group_id=");
+	sql.append(to_string(group_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	if (!sqlite_c->query_result->nextRow()) return g;
@@ -182,12 +182,12 @@ QQGroup ThisBot::getThisBotGroup(unsigned int group_id) const {
 }
 QQGroupMember ThisBot::getGroupMember(unsigned int group_id, unsigned int member_id) const {
 	QQGroupMember gm(0);
-	string SQL("SELECT * FROM group_member_list WHERE group_id=");
-	SQL.append(to_string(group_id));
-	SQL.append(" AND user_id=");
-	SQL.append(to_string(member_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM group_member_list WHERE group_id=");
+	sql.append(to_string(group_id));
+	sql.append(" AND user_id=");
+	sql.append(to_string(member_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	if (!sqlite_c->query_result->nextRow()) return gm;
@@ -227,8 +227,8 @@ QQGroupMember ThisBot::getGroupMember(unsigned int group_id, unsigned int member
 }
 vector<unsigned int> ThisBot::getThisBotFriendIDList() const {
 	vector<unsigned int> ret;
-	string SQL("SELECT user_id FROM friend_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT user_id FROM friend_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	while (sqlite_c->query_result->nextRow()) {
@@ -238,8 +238,8 @@ vector<unsigned int> ThisBot::getThisBotFriendIDList() const {
 }
 vector<unsigned int> ThisBot::getThisBotUFriendIDList() const {
 	vector<unsigned int> ret;
-	string SQL("SELECT user_id FROM ufriend_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT user_id FROM ufriend_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	while (sqlite_c->query_result->nextRow()) {
@@ -249,8 +249,8 @@ vector<unsigned int> ThisBot::getThisBotUFriendIDList() const {
 }
 vector<unsigned int> ThisBot::getThisBotGroupIDList() const {
 	vector<unsigned int> ret;
-	string SQL("SELECT group_id FROM group_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT group_id FROM group_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	while (sqlite_c->query_result->nextRow()) {
@@ -260,10 +260,10 @@ vector<unsigned int> ThisBot::getThisBotGroupIDList() const {
 }
 vector<unsigned int> ThisBot::getGroupMemberIDList(unsigned int group_id) const {
 	vector<unsigned int> ret;
-	string SQL("SELECT user_id FROM group_member_list WHERE group_id=");
-	SQL.append(to_string(group_id));
-	SQL.append(";");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT user_id FROM group_member_list WHERE group_id=");
+	sql.append(to_string(group_id));
+	sql.append(";");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	while (sqlite_c->query_result->nextRow()) {
@@ -272,8 +272,8 @@ vector<unsigned int> ThisBot::getGroupMemberIDList(unsigned int group_id) const 
 	return ret;
 }
 void ThisBot::printFriendList() const {
-	string SQL("SELECT * FROM friend_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM friend_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	loger.info() << " ┌─ \033[34mQQ friends list\033[0m";
@@ -283,8 +283,8 @@ void ThisBot::printFriendList() const {
 	loger.info() << " └─ \033[34mTotal num: " << getThisBotFriendNum() << "\033[0m";
 }
 void ThisBot::printUFriendList() const {
-	string SQL("SELECT * FROM ufriend_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM ufriend_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	loger.info() << " ┌─ \033[34mQQ unidirectional friends list\033[0m";
@@ -294,8 +294,8 @@ void ThisBot::printUFriendList() const {
 	loger.info() << " └─ \033[34mTotal num: " << getThisBotUFriendNum() << "\033[0m";
 } 
 void ThisBot::printGroupList() const {
-	string SQL("SELECT * FROM group_list;");
-	if (!sqlite_c->query(SQL)) {
+	string sql("SELECT * FROM group_list;");
+	if (!sqlite_c->query(sql)) {
 		loger.error() << "In funtion " << __FUNCTION__ << " SQLite query error: " << sqlite_c->errmsg();
 	}
 	loger.info() << " ┌─ \033[34mQQ groups list\033[0m";
@@ -369,10 +369,10 @@ int ThisBot::fetchThisBotFriendList() {
 			bool flag = false;
 			flag |= !sqlite_c->update("DELETE FROM friend_list;");
 			for (auto& element : json_data["data"]) {
-				SQL sql("INSERT INTO friend_list VALUES (%1,'%2','%3');");
-				sql.args(1, element["user_id"]);
-				sql.args(2, element["nickname"]);
-				sql.args(3, element["remark"]);
+				SQL sql("INSERT INTO friend_list VALUES ({1},'{2}','{3}');");
+				sql.arg(1, element["user_id"]);
+				sql.arg(2, element["nickname"]);
+				sql.arg(3, element["remark"]);
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
@@ -414,10 +414,10 @@ int ThisBot::fetchThisBotUFriendList() {
 			bool flag = false;
 			flag |= !sqlite_c->update("DELETE FROM ufriend_list;");
 			for (auto& element : json_data["data"]) {
-				SQL sql("INSERT INTO ufriend_list VALUES (%1,'%2','%3');");
-				sql.args(1, element["user_id"]);
-				sql.args(2, element["nickname"]);
-				sql.args(3, element["source"]);
+				SQL sql("INSERT INTO ufriend_list VALUES ({1},'{2}','{3}');");
+				sql.arg(1, element["user_id"]);
+				sql.arg(2, element["nickname"]);
+				sql.arg(3, element["source"]);
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
@@ -457,14 +457,14 @@ int ThisBot::fetchThisBotGroupList() {
 			flag |= !sqlite_c->update("DELETE FROM group_list;");
 			flag |= !sqlite_c->update("DELETE FROM group_member_list;");
 			for (auto& element : json_data["data"]) {
-				SQL sql("INSERT INTO group_list VALUES (%1,'%2',%3,%4,%5,%6,'%7');");
-				sql.args(1, element["group_id"]);
-				sql.args(2, element["group_name"]);
-				sql.args(3, element["member_count"]);
-				sql.args(4, element["max_member_count"]);
-				sql.args(5, element["group_create_time"]);
-				sql.args(6, element["group_level"]);
-				sql.args(7, element["group_memo"]);
+				SQL sql("INSERT INTO group_list VALUES ({1},'{2}',{3},{4},{5},{6},'{7}');");
+				sql.arg(1, element["group_id"]);
+				sql.arg(2, element["group_name"]);
+				sql.arg(3, element["member_count"]);
+				sql.arg(4, element["max_member_count"]);
+				sql.arg(5, element["group_create_time"]);
+				sql.arg(6, element["group_level"]);
+				sql.arg(7, element["group_memo"]);
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
@@ -506,39 +506,39 @@ int ThisBot::fetchThisBotGroupMemberList(unsigned int group_id) {
 			bool flag = false;
 			flag |= !sqlite_c->update("DELETE FROM group_member_list WHERE group_id=" + to_string(group_id) + ";");
 			for (auto& element : json_data["data"]) {
-				SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,%10,'%11',%12,%13,'%14',15,%16);");
-				sql.args(1, element["user_id"]);
-				sql.args(2, element["group_id"]);
-				sql.args(3, element["nickname"]);
-				sql.args(4, element["age"]);
-				sql.args(5, element["area"]);
+				SQL sql("INSERT INTO group_member_list VALUES ({1},{2},'{3}',{4},'{5}',{6},'{7}',{8},{9},{10},'{11}',{12},{13},'{14}',{15},{16});");
+				sql.arg(1, element["user_id"]);
+				sql.arg(2, element["group_id"]);
+				sql.arg(3, element["nickname"]);
+				sql.arg(4, element["age"]);
+				sql.arg(5, element["area"]);
 				if (element["sex"] == "unknown") {
-					sql.args(6, "0");
+					sql.arg(6, "0");
 				}
 				else if (element["sex"] == "male") {
-					sql.args(6, "1");
+					sql.arg(6, "1");
 				}
 				else if (element["sex"] == "female") {
-					sql.args(6, "2");
+					sql.arg(6, "2");
 				}
-				sql.args(7, element["card"]);
-				sql.args(8, element["card_changeable"] == "false" ? "0" : "1");
-				sql.args(9, element["join_time"]);
-				sql.args(10, element["last_sent_time"]);
-				sql.args(11, element["level"]);
+				sql.arg(7, element["card"]);
+				sql.arg(8, element["card_changeable"] == "false" ? "0" : "1");
+				sql.arg(9, element["join_time"]);
+				sql.arg(10, element["last_sent_time"]);
+				sql.arg(11, element["level"]);
 				if (element["role"] == "member") {
-					sql.args(12, "0");
+					sql.arg(12, "0");
 				}
 				else if (element["role"] == "admin") {
-					sql.args(12, "1");
+					sql.arg(12, "1");
 				}
 				else if (element["role"] == "owner") {
-					sql.args(12, "2");
+					sql.arg(12, "2");
 				}
-				sql.args(13, element["shut_up_timestamp"]);
-				sql.args(14, element["title"]);
-				sql.args(15, element["title_expire_time"]);
-				sql.args(16, element["unfriendly"] ? "1" : "0");
+				sql.arg(13, element["shut_up_timestamp"]);
+				sql.arg(14, element["title"]);
+				sql.arg(15, element["title_expire_time"]);
+				sql.arg(16, element["unfriendly"] ? "1" : "0");
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
@@ -584,39 +584,39 @@ int ThisBot::fetchThisBotGroupMemberInfo(unsigned int group_id, unsigned int mem
 				+ " AND user_id="
 				+ to_string(member_id)
 				+ ";");
-			SQL sql("INSERT INTO group_member_list VALUES (%1,%2,'%3',%4,'%5',%6,'%7',%8,%9,10,'%11',%12,%13,'%14',%15,%16);");
-			sql.args(1, json_data["data"]["user_id"]);
-			sql.args(2, json_data["data"]["group_id"]);
-			sql.args(3, json_data["data"]["nickname"]);
-			sql.args(4, json_data["data"]["age"]);
-			sql.args(5, json_data["data"]["area"]);
+			SQL sql("INSERT INTO group_member_list VALUES ({1},{2},'{3}',{4},'{5}',{6},'{7}',{8},{9},{10},'{11}',{12},{13},'{14}',{15},{16});");
+			sql.arg(1, json_data["data"]["user_id"]);
+			sql.arg(2, json_data["data"]["group_id"]);
+			sql.arg(3, json_data["data"]["nickname"]);
+			sql.arg(4, json_data["data"]["age"]);
+			sql.arg(5, json_data["data"]["area"]);
 			if (json_data["data"]["sex"] == "unknown") {
-				sql.args(6, "0");
+				sql.arg(6, "0");
 			}
 			else if (json_data["data"]["sex"] == "male") {
-				sql.args(6, "1");
+				sql.arg(6, "1");
 			}
 			else if (json_data["data"]["sex"] == "female") {
-				sql.args(6, "2");
+				sql.arg(6, "2");
 			}
-			sql.args(7, json_data["data"]["card"]);
-			sql.args(8, json_data["data"]["card_changeable"] == "false" ? "0" : "1");
-			sql.args(9, json_data["data"]["join_time"]);
-			sql.args(10, json_data["data"]["last_send_time"]);
-			sql.args(11, json_data["data"]["level"]);
+			sql.arg(7, json_data["data"]["card"]);
+			sql.arg(8, json_data["data"]["card_changeable"] == "false" ? "0" : "1");
+			sql.arg(9, json_data["data"]["join_time"]);
+			sql.arg(10, json_data["data"]["last_send_time"]);
+			sql.arg(11, json_data["data"]["level"]);
 			if (json_data["data"]["user_id"] == "member") {
-				sql.args(12, "0");
+				sql.arg(12, "0");
 			}
 			else if (json_data["data"]["user_id"] == "admin") {
-				sql.args(12, "1");
+				sql.arg(12, "1");
 			}
 			else if (json_data["data"]["user_id"] == "owner") {
-				sql.args(12, "2");
+				sql.arg(12, "2");
 			}
-			sql.args(13, json_data["data"]["shut_up_timestamp"]);
-			sql.args(14, json_data["data"]["title"]);
-			sql.args(15, json_data["data"]["title_expire_time"]);
-			sql.args(16, json_data["data"]["unfriendly"] == "false" ? "0" : "1");
+			sql.arg(13, json_data["data"]["shut_up_timestamp"]);
+			sql.arg(14, json_data["data"]["title"]);
+			sql.arg(15, json_data["data"]["title_expire_time"]);
+			sql.arg(16, json_data["data"]["unfriendly"] == "false" ? "0" : "1");
 			flag |= !sqlite_c->update(sql);
 			if (flag) {
 				loger.warn() << "SQLite rollback in function fetchThisBotGroupMemberInfo.";
@@ -1780,10 +1780,10 @@ int ThisBot::applyKickGroupMember(unsigned int group_id, unsigned int member_id,
 
 // 静态公开成员函数
 string ThisBot::getQQHeaderImageURL(unsigned int QQid) {
-	// https://qlogo3.store.qq.com/qzone/(%QQID%)/(%QQID%)/640.jfif		//OK
-	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(%QQID%)&spec=640		//OK
-	// https://q1.qlogo.cn/g?b=qq&nk=(%QQID%)&s=640
-	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(%QQID%)&spec=640
+	// https://qlogo3.store.qq.com/qzone/(QQID)/(QQID)/640.jfif		//OK
+	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(QQID)&spec=640		//OK
+	// https://q1.qlogo.cn/g?b=qq&nk=(QQID)&s=640
+	// https://q2.qlogo.cn/headimg_dl.jfif?dst_uin=(QQID)&spec=640
 	return "https://q1.qlogo.cn/g?b=qq&nk=" + to_string(QQid) + "&s=640";
 }
 

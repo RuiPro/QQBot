@@ -27,46 +27,6 @@ int SQLiteQueryResult::column_type(unsigned int index) {
 	return sqlite3_column_type(m_stmt, index);
 }
 
-string SQL::getStr() const {
-	string ret;
-	for (int i = 0; i < m_sql_str.size(); ++i) {
-		if (m_sql_str[i] != '%') {
-			ret.push_back(m_sql_str[i]);
-			continue;
-		}
-		// 取出%后面的两个数字
-		int number1 = -1, number2 = -1;
-		// 第一位必须为1~9
-		if (m_sql_str[i + 1] > 48 && m_sql_str[i + 1] < 58) {
-			number1 = m_sql_str[i + 1] - 48;
-		}
-		else {
-			ret.push_back(m_sql_str[i]);
-			continue;
-		}
-		// 第二位
-		if (m_sql_str[i + 2] >= 48 && m_sql_str[i + 2] < 58) {
-			number2 = m_sql_str[i + 2] - 48;
-		}
-		// 取值
-		// 如果两位数都合法且已经确定了参数
-		if (number2 != -1 && (number1 * 10 + number2 - 1) < 50 && !m_arg_set[number1 * 10 + number2 - 1].empty()) {
-			ret.append(m_arg_set[number1 * 10 + number2 - 1]);
-			i += 2;
-		}
-		// 如果只有第一位数合法且已经确定了参数
-		else if (number1 != -1 && !m_arg_set[number1 - 1].empty()) {
-			ret.append(m_arg_set[number1 - 1]);
-			i += 1;
-		}
-		else {
-			ret.push_back(m_sql_str[i]);
-			continue;
-		}
-	}
-	return ret;
-}
-
 SQLiteClient::SQLiteClient() {
 	query_result = new SQLiteQueryResult;
 }
@@ -96,8 +56,11 @@ bool SQLiteClient::update(const string& sql) {
 	}
 	return false;
 }
+bool SQLiteClient::update(const char* sql) {
+	return update(string(sql));
+}
 bool SQLiteClient::update(const SQL& sql) {
-	return update(sql.getStr());
+	return update(sql.str());
 }
 bool SQLiteClient::query(const string& sql) {
 	query_result->clear();		// 释放上一次的查询结果
@@ -109,8 +72,11 @@ bool SQLiteClient::query(const string& sql) {
 	}
 	return true;
 }
+bool SQLiteClient::query(const char* sql) {
+	return query(string(sql));
+}
 bool SQLiteClient::query(const SQL& sql) {
-	return query(sql.getStr());
+	return query(sql.str());
 }
 bool SQLiteClient::transaction() {
 	m_transaction_lock.lock();

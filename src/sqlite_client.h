@@ -7,10 +7,34 @@
 #include <vector>
 #include <mutex>
 #include <sstream>
-#include "../Gadget/all2str.h"
-#include "sql.hpp"
+#include "all2str.h"
 using namespace std;
 using namespace chrono;
+
+#include "format.h"
+#include <json.hpp>
+using json = nlohmann::json;
+
+class SQL : public Format {
+public:
+	SQL(const string& str) : Format(str) {}
+	SQL(string&& str) : Format(std::move(str)) {}
+	SQL(const char* str_arr) : Format(std::move(string(str_arr))) {}
+	~SQL() {}
+
+	template<class T>
+	void arg(int index, const T& t) {
+		string str = all2str(t);
+		string sql_arg;
+		for (auto& element : str) {
+			if (element == '\'') {
+				sql_arg.push_back('\'');
+			}
+			sql_arg.push_back(element);
+		}
+		m_arg_set.insert(std::move(std::pair<int, string>(index, sql_arg)));
+	}
+};
 
 struct SQLiteQueryResult {
 	sqlite3_stmt* m_stmt = nullptr;
@@ -35,9 +59,11 @@ public:
 	bool opendb(const string& dbName, int flag = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE);
 	// 更新数据库: insert, update, delete
 	bool update(const string& sql);
+	bool update(const char* sql);
 	bool update(const SQL& sql);
 	// 查询数据库
 	bool query(const string& sql);
+	bool query(const char* sql);
 	bool query(const SQL& sql);
 	// 事务操作
 	bool transaction();
