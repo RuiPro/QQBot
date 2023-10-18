@@ -193,9 +193,6 @@ QQGroupMember ThisBot::getGroupMember(unsigned int group_id, unsigned int member
 	if (!sqlite_c->query_result->nextRow()) return gm;
 	gm.m_id = member_id;
 	gm.m_group_id = group_id;
-	for (int i = 0; i < 16; ++i) {
-		loger.debug() << ">>>>>" << i << ">>>>> " << sqlite_c->query_result->rowValue(i);
-	}
 
 	gm.m_name = sqlite_c->query_result->rowValue(2);
 	gm.m_user_age = stoi(sqlite_c->query_result->rowValue(3).empty() ? "0" : sqlite_c->query_result->rowValue(3));
@@ -206,7 +203,6 @@ QQGroupMember ThisBot::getGroupMember(unsigned int group_id, unsigned int member
 	gm.m_group_join_time = static_cast<unsigned int>(stol(sqlite_c->query_result->rowValue(8)));
 	gm.m_group_last_active_time = static_cast<unsigned int>(stol(sqlite_c->query_result->rowValue(9).empty() ? "0" : sqlite_c->query_result->rowValue(9)));
 	gm.m_group_level = sqlite_c->query_result->rowValue(10);
-	loger.debug() << "===1===";
 	switch (stoi(sqlite_c->query_result->rowValue(11).empty() ? "0" : sqlite_c->query_result->rowValue(11))) {
 	case 0:
 		gm.m_group_role = QQGroupRole::member;
@@ -218,7 +214,6 @@ QQGroupMember ThisBot::getGroupMember(unsigned int group_id, unsigned int member
 		gm.m_group_role = QQGroupRole::owner;
 		break;
 	}
-	loger.debug() << "===2===";
 	gm.m_group_mute_time = static_cast<unsigned int>(stol(sqlite_c->query_result->rowValue(12)));
 	gm.m_group_title = sqlite_c->query_result->rowValue(13);
 	gm.m_group_title_expire_time = static_cast<unsigned int>(stol(sqlite_c->query_result->rowValue(14)));
@@ -376,7 +371,7 @@ int ThisBot::fetchThisBotFriendList() {
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
-				loger.warn() << "SQLite rollback in function fetchThisBotFriendList.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 			}
 			else {
@@ -421,7 +416,7 @@ int ThisBot::fetchThisBotUFriendList() {
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
-				loger.warn() << "SQLite rollback in function fetchThisBotUFriendList.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 			}
 			else {
@@ -468,7 +463,7 @@ int ThisBot::fetchThisBotGroupList() {
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
-				loger.warn() << "SQLite rollback in function fetchThisBotGroupList.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 			}
 			else {
@@ -542,7 +537,7 @@ int ThisBot::fetchThisBotGroupMemberList(unsigned int group_id) {
 				flag |= !sqlite_c->update(sql);
 			}
 			if (flag) {
-				loger.warn() << "SQLite rollback in function fetchThisBotGroupMemberList.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 			}
 			else {
@@ -602,15 +597,15 @@ int ThisBot::fetchThisBotGroupMemberInfo(unsigned int group_id, unsigned int mem
 			sql.arg(7, json_data["data"]["card"]);
 			sql.arg(8, json_data["data"]["card_changeable"] == "false" ? "0" : "1");
 			sql.arg(9, json_data["data"]["join_time"]);
-			sql.arg(10, json_data["data"]["last_send_time"]);
+			sql.arg(10, json_data["data"]["last_sent_time"]);
 			sql.arg(11, json_data["data"]["level"]);
-			if (json_data["data"]["user_id"] == "member") {
+			if (json_data["data"]["role"] == "member") {
 				sql.arg(12, "0");
 			}
-			else if (json_data["data"]["user_id"] == "admin") {
+			else if (json_data["data"]["role"] == "admin") {
 				sql.arg(12, "1");
 			}
-			else if (json_data["data"]["user_id"] == "owner") {
+			else if (json_data["data"]["role"] == "owner") {
 				sql.arg(12, "2");
 			}
 			sql.arg(13, json_data["data"]["shut_up_timestamp"]);
@@ -619,7 +614,7 @@ int ThisBot::fetchThisBotGroupMemberInfo(unsigned int group_id, unsigned int mem
 			sql.arg(16, json_data["data"]["unfriendly"] == "false" ? "0" : "1");
 			flag |= !sqlite_c->update(sql);
 			if (flag) {
-				loger.warn() << "SQLite rollback in function fetchThisBotGroupMemberInfo.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 			}
 			else {
@@ -1348,7 +1343,7 @@ int ThisBot::applyRemoveFriend(unsigned int friend_id) {
 			loger.info() << "Delete friend " << f.m_name << "(" << f.m_id << ")";
 			sqlite_c->transaction();
 			if (sqlite_c->update("DELETE FROM friend_list WHERE user_id=" + to_string(friend_id) + ";")) {
-				loger.warn() << "SQLite rollback in function applyRemoveFriend.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 				return -1;
 			}
@@ -1358,7 +1353,7 @@ int ThisBot::applyRemoveFriend(unsigned int friend_id) {
 			string send_buffer = send_json.dump();
 			string data_buffer;
 			if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) {
-				loger.warn() << "SQLite rollback in function applyRemoveFriend.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 				return -1;
 			}
@@ -1379,7 +1374,7 @@ int ThisBot::applyRemoveUFriend(unsigned int ufriend_id) {
 			loger.info() << "Delete ufriend " << uf.m_name << "(" << uf.m_id << ")";
 			sqlite_c->transaction();
 			if (sqlite_c->update("DELETE FROM friend_list WHERE user_id=" + to_string(ufriend_id) + ";")) {
-				loger.warn() << "SQLite rollback in function applyRemoveUFriend.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 				return -1;
 			}
@@ -1389,7 +1384,7 @@ int ThisBot::applyRemoveUFriend(unsigned int ufriend_id) {
 			string send_buffer = send_json.dump();
 			string data_buffer;
 			if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) {
-				loger.warn() << "SQLite rollback in function applyRemoveUFriend.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 				return -1;
 			}
@@ -1410,12 +1405,12 @@ int ThisBot::applyRemoveGroup(unsigned int group_id, bool dissolve) {
 			loger.info() << "Leave group " << g.m_name << "(" << g.m_id << ")";
 			sqlite_c->transaction();
 			if (sqlite_c->update("DELETE FROM group_list WHERE group_id=" + to_string(group_id) + ";")) {
-				loger.warn() << "SQLite rollback in function applyRemoveGroup.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 				return -1;
 			}
 			if (sqlite_c->update("DELETE FROM group_member_list WHERE group_id=" + to_string(group_id) + ";")) {
-				loger.warn() << "SQLite rollback in function applyRemoveGroup.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 				return -1;
 			}
@@ -1426,7 +1421,7 @@ int ThisBot::applyRemoveGroup(unsigned int group_id, bool dissolve) {
 			string send_buffer = send_json.dump();
 			string data_buffer;
 			if (sendPOSTRequest(URL, send_buffer, data_buffer) != 0) {
-				loger.warn() << "SQLite rollback in function applyRemoveGroup.";
+				loger.warn() << "SQLite rollback in function " << __FUNCTION__ << " :" << sqlite_c->errmsg();
 				sqlite_c->rollback();
 				return -1;
 			}

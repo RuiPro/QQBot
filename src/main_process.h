@@ -41,6 +41,7 @@ public:
 	MainProcess& operator=(const MainProcess&) = delete;
 	~MainProcess();
 
+	void loadPlugins();							// 加载插件
 	void exec();								// 执行事件循环
 
 	// 添加定时器任务，成功返回事件指针，失败返回nullptr
@@ -89,13 +90,13 @@ private:
 	int msgQueueAdd(string&& msg);
 	int msgQueueGet(string& msg);
 	bool msgQueueIsEmpty();
-	int loadPlugins();							// 加载插件
-	static int loadDir(const string& dir_path);	// 检查文件夹
 
 	// 内置的Bot逻辑，比如自动加好友
 	void corePlugin(const string& msg);
 	// 用于消费消息队列中的信息，并分发给每个插件
 	void handOutMsg();
+
+	static int loadDir(const string& dir_path);	// 检查文件夹
 };
 
 #define MainProc (*MainProcess::getMainProcessObj())

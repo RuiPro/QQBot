@@ -22,6 +22,7 @@ void signalHandler(int signal) {
 int main(int argc, char** argv) {
     signal(SIGINT, signalHandler);
 	MainProcess::initMainProcessObj(argc, argv);
+	MainProcPtr->loadPlugins();
 	MainProcPtr->exec();
 	return 0;
 }
