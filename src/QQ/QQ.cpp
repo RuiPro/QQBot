@@ -45,14 +45,14 @@ string ThisBot::getThisBotNickname() const {
 	string ret = m_nickname;
 	return ret;
 }
-bool ThisBot::getThisBotHasAdmin() const {
-	bool ret = true;
-	if (m_administrator_id == 0) ret = false;
-	return ret;
+bool ThisBot::getThisBotHasAdmin(unsigned int id) const {
+	for (auto& element : m_admin_list) {
+		if (element == id) return true;
+	}
+	return false;
 }
-QQFriend ThisBot::getThisBotAdmin() const {
-	QQFriend ret = m_administrator_id;
-	return ret;
+vector<unsigned int> ThisBot::getThisBotAdminList() const {
+	return m_admin_list;
 }
 int ThisBot::getThisBotFriendNum() const {
 	int ret = 0;
@@ -301,18 +301,27 @@ void ThisBot::printGroupList() const {
 }
 
 // 【Set】这些函数用以手动设置Bot的某些信息
-int ThisBot::setThisBotAdmin(unsigned int admin_id) {
+int ThisBot::setAddThisBotAdmin(unsigned int admin_id) {
 	if (admin_id == m_id) {
 		return 0;
 	}
-	if (getThisBotHasFriend(admin_id) >= 0) {
-		m_administrator_id = admin_id;
+	if (getThisBotHasFriend(admin_id)) {
+		m_admin_list.push_back(admin_id);
 	}
 	else {
-		loger.error() << "The administrator is not a friend of QQ bot, setting failed.";
+		loger.error() << "Failed to add an administrator: isn't the friend of ThisBot.";
 		return -1;
 	}
 	return 0;
+}
+int ThisBot::setRemoveThisBotAdmin(unsigned int admin_id) {
+	for (auto iter = m_admin_list.begin(); iter != m_admin_list.end(); iter++) {
+		if (*iter == admin_id) {
+			m_admin_list.erase(iter);
+			return 0;
+		}
+	}
+	return -1;
 }
 void ThisBot::setCqhttpAddr(const string& addr) {
 	ThisBot::m_cqhttp_addr = addr;
@@ -376,8 +385,10 @@ int ThisBot::fetchThisBotFriendList() {
 			}
 			else {
 				sqlite_c->commit();
-				if (!getThisBotHasFriend(m_administrator_id)) {
-					setThisBotAdmin(0);
+				for (auto& element : m_admin_list) {
+					if (!getThisBotHasFriend(element)) {
+						setRemoveThisBotAdmin(element);
+					}
 				}
 			}
 		}
@@ -1333,6 +1344,11 @@ int ThisBot::applySendGroupeForwardMsg(unsigned int group_id, QQMessage& msg) {
 	catch (...) {
 		loger.error() << "Exception in function " << __FUNCTION__;
 		return -1;
+	}
+}
+int ThisBot::applySendToAdmin(QQMessage& msg) {
+	for(auto& element : m_admin_list) {
+		applySendPrivateMsg(element, msg);
 	}
 }
 int ThisBot::applyRemoveFriend(unsigned int friend_id) {

@@ -62,12 +62,14 @@ private:
 	bool is_running = false;
 	vector<char*> m_argv;						// 程序参数列表
 	string m_app_path;							// 程序的绝对地址
+	string m_bind_addr;							// 程序绑定的HTTP地址			
 	unsigned short m_bind_port;					// 程序绑定的HTTP端口
-	string m_cqhttp_addr;						// cqhttp的HTTP地址(包含端口)
+	string m_onebot_addr;						// cqhttp的HTTP地址(包含端口)
 	string m_access_token;						// 与cqhttp通信的access token
 	ThreadPool* m_thread_pool = nullptr;		// 线程池
 	bool m_auto_add_friend;						// 是否自动加好友
 	bool m_auto_join_group;						// 是否自动加群
+	vector<unsigned int> m_admin_list;			// 管理员列表
 	int m_thread_pool_max_thread_num;			// 线程池最大线程数
 	int m_thread_pool_max_task_num;				// 线程池最大任务数
 	int m_thread_pool_adjust_range;				// 线程池每次增加线程/销毁闲线程的数量，单位个，配置默认是5

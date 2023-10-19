@@ -1,5 +1,9 @@
 #include "thread_pool.hpp"
 
+#include <iostream>
+using std::cout;
+using std::endl;
+
 ThreadPool::ThreadPool(int min_thread_num, int max_thread_num, int max_task_num, 
     int wave_range/*5*/, int manager_check_interval/*2000*/) {
     if (max_thread_num < min_thread_num || max_thread_num <= 0 ||
@@ -71,14 +75,14 @@ void ThreadPool::terminate() {
         m_max_task_num = -1;
         // 如果还有线程在工作，则等待
         while (m_working_thread_num.load() != 0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         // 让管理者线程和工作线程退出循环
         m_state_code = 2;
         // 回收管理者线程
         m_manager->join();
         // 唤醒正在睡眠的子线程
-        cond.notify_all();
+        m_consumer_cond.notify_all();
         // 回收工作线程
         for (auto& thread_element : *m_worker_list) {
             delete thread_element;
@@ -120,7 +124,7 @@ void ThreadPool::manager_func() {
             // 唤醒对应个睡眠的线程
             // 在此情景下，任务队列应该是空的，添加任务的函数那里不会休眠，所以不会被唤醒
             for (int i = 0; i < destroyNum; ++i) {
-                cond.notify_one();
+                m_consumer_cond.notify_one();
             }
             // 等待要被回收的线程就绪
             while (m_exit_thread_num.load() != 0) {
@@ -192,7 +196,7 @@ void WorkerThread::worker_func() {
         std::unique_lock<std::mutex> uniqueLock(m_pool->m_task_queue_mutex);
         // 当任务队列为空时睡眠等待
         while (m_pool->m_task_queue->empty()) {
-            m_pool->cond.wait(uniqueLock);
+            m_pool->m_consumer_cond.wait(uniqueLock);
             // 当线程醒来发现需要有线程退出
             if (m_pool->m_exit_thread_num.load() != 0) {
                 --m_pool->m_exit_thread_num;
@@ -214,7 +218,7 @@ void WorkerThread::worker_func() {
         // 释放任务队列锁
         uniqueLock.unlock();
         // 唤醒添加任务的函数
-        m_pool->cond.notify_one();
+        m_pool->m_producer_cond.notify_one();
         // 工作线程数量加一
         ++m_pool->m_working_thread_num;
         // 执行任务
