@@ -46,7 +46,8 @@ private:
 	std::mutex m_task_queue_mutex;                // 锁任务队列
 	std::list<WorkerThread*>* m_worker_list = nullptr; // 存放线程的链表
 	std::thread* m_manager = nullptr;             // 管理者线程
-	std::condition_variable cond;               // 任务条件变量
+	std::condition_variable m_consumer_cond;		// 消费者任务条件变量：用于阻塞消费者，由生产者唤醒
+	std::condition_variable m_producer_cond;		// 生产者任务条件变量：用于阻塞生产者，由消费者唤醒
 	std::vector<std::thread::id>* m_to_destroy = nullptr;          // 存放需要进行销毁的线程ID
 	std::mutex m_to_destroy_mutex;                // 锁销毁队列
 	short m_state_code;                           // 状态码：0创建但未运行 1正在运行 2结束准备销毁
@@ -77,7 +78,7 @@ int ThreadPool::addTask(F func, Args... args) {
 	if (m_block_task_when_full) {
 		// 满的时候休眠
 		while (m_task_queue->size() >= m_max_task_num) {
-			cond.wait(uniqueLock);
+			m_producer_cond.wait(uniqueLock);
 			// 当被唤醒之后发现不允许添加任务立即返回
 			if (m_max_task_num == -1) {
 				return -1;
@@ -95,7 +96,7 @@ int ThreadPool::addTask(F func, Args... args) {
 		}
 	}
 	m_task_queue->push(std::bind(func, args...));
-	cond.notify_all();
+	m_consumer_cond.notify_all();
 	return 0;
 }
 #endif

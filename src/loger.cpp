@@ -1,5 +1,5 @@
-#include "loger.h"
-#include "../base_plugin.h"
+#include "loger.hpp"
+#include "base_plugin.h"
 
 string Loger::sm_error_tag = " \033[31mError\033[0m]";
 string Loger::sm_warn_tag = " \033[33mWarn\033[0m] ";

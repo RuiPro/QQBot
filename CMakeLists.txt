@@ -22,13 +22,15 @@ add_executable (QQBot.app "src/main.cpp")
 
  # 自建库
  add_library(mainproc SHARED
- "src/ThreadPool/thread_pool.hpp"
- "src/ThreadPool/thread_pool.cpp"
+ "src/thread_pool.hpp"
+ "src/thread_pool.cpp"
  "src/main_process.cpp"
- "src/load_plugin.cpp")
- add_library(loger SHARED "src/Loger/loger.cpp")
- add_library(QQ SHARED "src/QQ/QQ_message.cpp"  "src/QQ/QQ.cpp")
- add_library(sqlitec SHARED "src/sqlc/sqlite_client.cpp")
+ "src/load_plugin.cpp"
+ "src/all2str.cpp"
+ "src/format.cpp")
+ add_library(loger SHARED "src/loger.hpp" "src/loger.cpp")
+ add_library(QQ SHARED "src/QQ/QQ_message.cpp" "src/QQ/QQ.cpp")
+ add_library(sqlitec SHARED "src/sqlite_client.cpp")
 
  # 外部库头文件
 include_directories(${PROJECT_SOURCE_DIR}/include/json)

@@ -12,10 +12,10 @@
 #include <chrono>
 #include <dirent.h>
 #include <sys/stat.h>
-#include "ThreadPool/thread_pool.hpp"
+#include "thread_pool.hpp"
 #include "QQ/QQ.h"
 #include "load_plugin.h"
-#include "Loger/loger.h"
+#include "loger.hpp"
 using namespace std;
 using json = nlohmann::json;
 #include "main_process.h"
@@ -98,11 +98,11 @@ void HTTPRequestCB(struct evhttp_request* req, void* cb_arg) {
 void TimerEventCB(evutil_socket_t fd, short event_t, void* cb_arg) {
 	event* ev = *(static_cast<event**>(cb_arg));
 	if (cb_arg != nullptr) delete static_cast<event**>(cb_arg);
-	auto iter = Process.m_event_data->m_timer_task_set->find(ev);
-	if (iter != Process.m_event_data->m_timer_task_set->end()) {
-		Process.m_thread_pool->addTask(iter->second);
-		unique_lock<mutex> locker(Process.m_event_data->m_timer_task_set_mutex);
-		Process.m_event_data->m_timer_task_set->erase(ev);
+	auto iter = MainProc.m_event_data->m_timer_task_set->find(ev);
+	if (iter != MainProc.m_event_data->m_timer_task_set->end()) {
+		MainProc.m_thread_pool->addTask(iter->second);
+		unique_lock<mutex> locker(MainProc.m_event_data->m_timer_task_set_mutex);
+		MainProc.m_event_data->m_timer_task_set->erase(ev);
 	}
 }
 
@@ -173,15 +173,20 @@ MainProcess::MainProcess(int argc, char** argv) {
 	if (analysisConfig() != 0) exit(0);
 	// 初始化数据
 	loger.info() << "Initialize ThreadPool...";
-	m_thread_pool = new ThreadPool(0, m_thread_pool_max_thread_num, m_thread_pool_max_task_num,
+	m_thread_pool = new ThreadPool(1, m_thread_pool_max_thread_num, m_thread_pool_max_task_num,
 		m_thread_pool_adjust_range, m_thread_pool_manager_interval);
 	m_thread_pool->start();
 	loger.info() << "Initialize data...";
 	m_msg_queue = new queue<string>;
 	m_plugins_list = new vector<LoadedPlugin*>;
 	m_event_data = new EventData;
+	m_event_data->m_timer_task_set = new map<event*, std::function<void()>>;
+	evthread_use_pthreads();
+	m_event_data->m_http_base = event_base_new();
+	m_event_data->m_ev_httpd = evhttp_new(m_event_data->m_http_base);
+	m_event_data->m_timer_base = event_base_new();
 	// 实例化Bot对象
-	ThisBot::createBot(m_cqhttp_addr, m_access_token, m_use_cache);
+	ThisBot::createBot(m_onebot_addr, m_access_token, m_use_cache);
 	// 获取Cqhttp和Bot对象的信息并输出
 	loger.info() << "Using go-cqhttp version: " << QQBot.queryCqhttpVersion();
 	if (QQBot.fetchThisBotBasicInfo() != 0) exit(0);
@@ -196,18 +201,20 @@ MainProcess::MainProcess(int argc, char** argv) {
 	for (auto& element : group_id_list) {
 		QQBot.fetchThisBotGroupMemberList(element);
 	}
-	// 加载插件
-	loger.info() << "Loading plugins...";
-	if (loadDir(m_app_path + "plugins/") != 0) exit(0);
-	if (loadPlugins() != 0) exit(0);
-	loger.info() << "Load plugins: " << m_plugins_list->size();
+	for (auto& element : m_admin_list) {
+		QQBot.setAddThisBotAdmin(element);
+	}
+	loger.info() << "Add " << m_admin_list.size() << " administrator to ThisBot.";
 }
 MainProcess::~MainProcess() {
 	loger.info() << "\033[31m\033[1mProgram exiting...\033[0m";
-	loger.info() << "\033[31m\033[1mExiting httpd loop...\033[0m";
-	event_base_loopbreak(m_event_data->m_http_base);
-	loger.info() << "\033[31m\033[1mExiting timer loop...\033[0m";
-	event_base_loopbreak(m_event_data->m_timer_base);
+	loger.info() << "\033[31m\033[1mExiting event loop...\033[0m";
+	if (event_base_loopbreak(m_event_data->m_http_base) != 0) {
+		loger.error() << "\033[31m\033[1mExiting event http loop falid.\033[0m";
+	}
+	if (event_base_loopbreak(m_event_data->m_timer_base) != 0) {
+		loger.error() << "\033[31m\033[1mExiting event timer loop falid.\033[0m";
+	}
 	evhttp_free(m_event_data->m_ev_httpd);
 	event_base_free(m_event_data->m_http_base);
 	event_base_free(m_event_data->m_timer_base);
@@ -215,7 +222,7 @@ MainProcess::~MainProcess() {
 		unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
 		for (auto iter = m_event_data->m_timer_task_set->begin(); iter != m_event_data->m_timer_task_set->end(); iter++) {
 			if (iter->first != nullptr) {
-				delete iter->first;
+				event_del(iter->first);
 			}
 		}
 		delete m_event_data->m_timer_task_set;
@@ -240,20 +247,57 @@ MainProcess::~MainProcess() {
 void MainProcess::exec() {
 	if (is_running) return;
 	is_running = true;
-	evthread_use_pthreads();
-	m_event_data->m_timer_task_set = new map<event*, std::function<void()>>;
 	// 在子线程中执行消息分发
 	m_thread_pool->addTask(&MainProcess::handOutMsg, this);
 	// 在子线程中执行HTTP请求事件循环，把收到的数据放在数据队列中
-	m_event_data->m_http_base = event_base_new();
-	m_event_data->m_ev_httpd = evhttp_new(m_event_data->m_http_base);
-	evhttp_bind_socket(m_event_data->m_ev_httpd, "0.0.0.0", m_bind_port);
+	evhttp_bind_socket(m_event_data->m_ev_httpd, m_bind_addr.c_str(), m_bind_port);
 	evhttp_set_cb(m_event_data->m_ev_httpd, "/", HTTPRequestCB, this);
 	m_thread_pool->addTask(event_base_dispatch, m_event_data->m_http_base);
+	loger.info() << "\033[36mBot is now running!\033[0m";
 	// 在主线程中执数据处理计时器事件
-	m_event_data->m_timer_base = event_base_new();
 	event_base_loop(m_event_data->m_timer_base, EVLOOP_NO_EXIT_ON_EMPTY);
 }
+void MainProcess::loadPlugins() {
+	loger.info() << "Loading plugins...";
+	if (loadDir(m_app_path + "plugins/") != 0) {
+		loger.error() << "Load plugins error: falid to load plugin dir.";
+		exit(0);
+	}
+	// 加载plugins文件夹下的插件
+	string plugins_dir_path = m_app_path + "plugins/";
+	DIR* dir = opendir(plugins_dir_path.c_str());
+	if (dir == nullptr) {
+		loger.error() << "Faild to open diretory: " << plugins_dir_path;
+		exit(0);
+	}
+	dirent* file;
+	while ((file = readdir(dir)) != NULL) {
+		if (file->d_type == DT_REG) {
+			string file_name(file->d_name);
+			string suffix = ".plg";
+			if (file_name.length() <= 4 || file_name.substr(file_name.length() - suffix.length()) != suffix) continue;
+			LoadedPlugin* load_plugin = new LoadedPlugin(plugins_dir_path + file_name, m_app_path);
+			if (!load_plugin->isGood()) {
+				loger.warn() << "Plugin " << file_name << " faild to load: bad plugin.";
+				delete load_plugin;
+				continue;
+			}
+			loger.info() << "Loading plugin " << load_plugin->getPluginName() << " " << load_plugin->getPluginVersion() << "...";
+			// 加载插件后，为插件创建一个插件专用的目录
+			if (loadDir(plugins_dir_path + load_plugin->getPluginName() + "/") != 0) {
+				loger.warn() << "Faild to create diretory for plugin: " << load_plugin->getPluginName();
+				delete load_plugin;
+				continue;
+			}
+			load_plugin->loading();
+			m_plugins_list->push_back(load_plugin);
+		}
+	}
+	closedir(dir);
+	loger.info() << "Load plugins: " << m_plugins_list->size();
+	return;
+}
+
 string MainProcess::getPath() {
 	char* argv0 = m_argv[0];
 	string env_path;
@@ -301,15 +345,17 @@ int MainProcess::configFileInit() {
 			exit(0);
 		}
 		new_file << R"({
-	"use_cache": true,
+	"bind_addr": "0.0.0.0",
 	"bind_port": 12345,
-	"go-cqhttp_IP": "127.0.0.1",
-	"go-cqhttp_port": 5700,
+	"OneBot_addr": "127.0.0.1",
+	"OneBot_port": 5700,
+	"use_cache": true,
 	"access_token": "",
+	"admin_list": [],
 	"thread_pool":{
-		"max_thread_num": 8,
-		"max_task_num": 32,
-		"adjust_range": 5,
+		"max_thread_num": 64,
+		"max_task_num": 512,
+		"adjust_range": 2,
 		"manager_interval": 2000
 	},
 	"CorePlugin":{
@@ -329,50 +375,32 @@ int MainProcess::analysisConfig() {
 	ifstream config_file(config_path);
 	if (!config_file.is_open()) {
 		loger.error() << "Failed to open file config.json.";
-		exit(0);
+		return -1;
 	}
 	try {
 		json config;
 		config_file >> config;
 		if (!config.is_object()) {
 			loger.error() << "Cann't get json from config.json.";
-			exit(0);
-		}
-		if (config.find("use_cache") == config.end() ||
-			config.find("bind_port") == config.end() ||
-			config.find("go-cqhttp_IP") == config.end() ||
-			config.find("go-cqhttp_port") == config.end() ||
-			config.find("thread_pool") == config.end() ||
-			config["thread_pool"].find("max_thread_num") == config["thread_pool"].end() ||
-			config["thread_pool"].find("max_task_num") == config["thread_pool"].end() ||
-			config["thread_pool"].find("adjust_range") == config["thread_pool"].end() ||
-			config["thread_pool"].find("manager_interval") == config["thread_pool"].end() ||
-			config.find("CorePlugin") == config.end() ||
-			config["CorePlugin"].find("auto_add_friend") == config["CorePlugin"].end() ||
-			config["CorePlugin"].find("auto_join_group") == config["CorePlugin"].end()) {
-			loger.error() << "Required value not found in config.json";
-			loger.error() << "You may be able to delete config.json and reconfigure it.";
 			return -1;
 		}
-		m_use_cache = config["use_cache"];
+		m_bind_addr = config["bind_addr"];
 		m_bind_port = config["bind_port"];
-		string cqhttp_IP = config["go-cqhttp_IP"];
-		unsigned short cqhttp_port = config["go-cqhttp_port"];
+		m_onebot_addr = config["OneBot_addr"].get<string>() + ":" + to_string(config["OneBot_port"]);
+		m_use_cache = config["use_cache"];
+		for (auto& element : config["admin_list"]) {
+			m_admin_list.push_back(element);
+		}
 		m_thread_pool_max_thread_num = config["thread_pool"]["max_thread_num"];
 		m_thread_pool_max_task_num = config["thread_pool"]["max_task_num"];
 		m_thread_pool_adjust_range = config["thread_pool"]["adjust_range"];
 		m_thread_pool_manager_interval = config["thread_pool"]["manager_interval"];
 		m_auto_add_friend = config["CorePlugin"]["auto_add_friend"];
 		m_auto_join_group = config["CorePlugin"]["auto_join_group"];
-		if (cqhttp_IP.empty() || cqhttp_port == 0 || m_bind_port == 0 || m_thread_pool_max_thread_num < 0 ||
-			m_thread_pool_max_task_num <= 0 || m_thread_pool_adjust_range <= 0 || m_thread_pool_manager_interval < 0) {
-			loger.error() << "Invalid config value found! Please check the config.json.";
-			exit(0);
-		}
-		m_cqhttp_addr = cqhttp_IP + ":" + to_string(cqhttp_port);
+
 		cout << "\033[32m" << "-------- Use HTTP to communicate with go-cqhttp --------" << "\033[0m" << endl;
-		cout << "\033[32m" << "> Bind HTTP server port: \033[1m" << m_bind_port << "\033[0m" << endl;
-		cout << "\033[32m" << "> The (HTTP) address of go-cqhttp is: \033[1m" << m_cqhttp_addr << "\033[0m" << endl;
+		cout << "\033[32m" << "> Bind HTTP server addr: \033[1m" << m_bind_addr << ":" << m_bind_port << "\033[0m" << endl;
+		cout << "\033[32m" << "> The (HTTP) address of OneBot is: \033[1m" << m_onebot_addr << "\033[0m" << endl;
 		if (config.find("access_token") != config.end() && !string(config["access_token"]).empty()) {
 			m_access_token = config["access_token"];
 			string str(m_access_token.size(), '*');
@@ -388,6 +416,7 @@ int MainProcess::analysisConfig() {
 	}
 	catch (const exception& e) {
 		loger.error() << "Failed to analysis config json:" << e.what();
+		loger.error() << "You may be able to delete config.json and reconfigure it.";
 		return -1;
 	}
 }
@@ -412,68 +441,6 @@ int MainProcess::msgQueueGet(string& msg) {
 }
 bool MainProcess::msgQueueIsEmpty() {
 	return m_msg_queue->empty();
-}
-int MainProcess::loadPlugins() {
-	// 加载plugins文件夹下的插件
-	string plugins_dir_path = m_app_path + "plugins/";
-	DIR* dir = opendir(plugins_dir_path.c_str());
-	if (dir == nullptr) {
-		loger.error() << "Faild to open diretory: " << plugins_dir_path;
-		return -1;
-	}
-	dirent* file;
-	while ((file = readdir(dir)) != NULL) {
-		if (file->d_type == DT_REG) {
-			string file_name(file->d_name);
-			string suffix = ".plg";
-			if (file_name.length() <= 4 || file_name.substr(file_name.length() - suffix.length()) != suffix) continue;
-			LoadedPlugin* load_plugin = new LoadedPlugin(plugins_dir_path + file_name, m_app_path);
-			if (!load_plugin->isGood()) {
-				loger.warn() << "Plugin " << file_name << " faild to load: bad plugin.";
-				delete load_plugin;
-				continue;
-			}
-			loger.info() << "Loading plugin " << load_plugin->getPluginName() << " " << load_plugin->getPluginVersion() << "...";
-			// 加载插件后，为插件创建一个插件专用的目录
-			if (loadDir(plugins_dir_path + load_plugin->getPluginName() + "/") != 0) {
-				loger.warn() << "Faild to create diretory for plugin: " << load_plugin->getPluginName();
-				delete load_plugin;
-				continue;
-			}
-			load_plugin->loading();
-			m_plugins_list->push_back(load_plugin);
-		}
-	}
-	closedir(dir);
-	return 0;
-}
-int MainProcess::loadDir(const string& dir_path) {
-	// 判断文件夹是否存在
-	struct stat plugins_dir_info;
-	// 如果不存在，则创建
-	if (stat(dir_path.c_str(), &plugins_dir_info) != 0) {
-		if (errno == ENOENT) {
-			if (mkdir(dir_path.c_str(), 0755) != 0) {
-				loger.error() << "Failed to create diretory: " << dir_path;
-				return -1;
-			}
-			return 0;
-		}
-		else {
-			loger.error() << "Failed to check plugins diretory. Error code: " << errno;
-			return -1;
-		}
-	}
-	// 如果存在，判断是否可读
-	if ((plugins_dir_info.st_mode & S_IFDIR) == 0) {
-		loger.error() << dir_path << " is not a diretory.";
-		return -1;
-	}
-	if (access(dir_path.c_str(), F_OK | R_OK | X_OK) != 0) {
-		loger.error() << "Unable to access " << dir_path << ", folder does not exist or permission deny.";
-		return -1;
-	}
-	return 0;
 }
 void MainProcess::corePlugin(const string& msg) {
 	try {
@@ -572,4 +539,32 @@ void MainProcess::handOutMsg() {
 			m_thread_pool->addTask((void(BasicPlugin::*)(const string&)) & BasicPlugin::pluginMain, plugin->getBasicPlugin(), a_msg);
 		}
 	}
+}
+
+int MainProcess::loadDir(const string& dir_path) {
+	// 判断文件夹是否存在
+	struct stat plugins_dir_info;
+	// 如果不存在，则创建
+	if (stat(dir_path.c_str(), &plugins_dir_info) != 0) {
+		if (errno == ENOENT) {
+			if (mkdir(dir_path.c_str(), 0755) != 0) {
+				loger.error() << "Failed to create diretory: " << dir_path;
+				return -1;
+			}
+			return 0;
+		} else {
+			loger.error() << "Failed to check plugins diretory. Error code: " << errno;
+			return -1;
+		}
+	}
+	// 如果存在，判断是否可读
+	if ((plugins_dir_info.st_mode & S_IFDIR) == 0) {
+		loger.error() << dir_path << " is not a diretory.";
+		return -1;
+	}
+	if (access(dir_path.c_str(), F_OK | R_OK | X_OK) != 0) {
+		loger.error() << "Unable to access " << dir_path << ", folder does not exist or permission deny.";
+		return -1;
+	}
+	return 0;
 }

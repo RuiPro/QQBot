@@ -1,8 +1,6 @@
 #ifndef MAIN_PROCESS_H
 #define MAIN_PROCESS_H
 
-#define VERSION "1.0.1"
-
 #include <string>
 #include <vector>
 #include <queue>
@@ -43,6 +41,7 @@ public:
 	MainProcess& operator=(const MainProcess&) = delete;
 	~MainProcess();
 
+	void loadPlugins();							// 加载插件
 	void exec();								// 执行事件循环
 
 	// 添加定时器任务，成功返回事件指针，失败返回nullptr
@@ -63,12 +62,14 @@ private:
 	bool is_running = false;
 	vector<char*> m_argv;						// 程序参数列表
 	string m_app_path;							// 程序的绝对地址
+	string m_bind_addr;							// 程序绑定的HTTP地址			
 	unsigned short m_bind_port;					// 程序绑定的HTTP端口
-	string m_cqhttp_addr;						// cqhttp的HTTP地址(包含端口)
+	string m_onebot_addr;						// cqhttp的HTTP地址(包含端口)
 	string m_access_token;						// 与cqhttp通信的access token
 	ThreadPool* m_thread_pool = nullptr;		// 线程池
 	bool m_auto_add_friend;						// 是否自动加好友
 	bool m_auto_join_group;						// 是否自动加群
+	vector<unsigned int> m_admin_list;			// 管理员列表
 	int m_thread_pool_max_thread_num;			// 线程池最大线程数
 	int m_thread_pool_max_task_num;				// 线程池最大任务数
 	int m_thread_pool_adjust_range;				// 线程池每次增加线程/销毁闲线程的数量，单位个，配置默认是5
@@ -91,16 +92,16 @@ private:
 	int msgQueueAdd(string&& msg);
 	int msgQueueGet(string& msg);
 	bool msgQueueIsEmpty();
-	int loadPlugins();							// 加载插件
-	static int loadDir(const string& dir_path);	// 检查文件夹
 
 	// 内置的Bot逻辑，比如自动加好友
 	void corePlugin(const string& msg);
 	// 用于消费消息队列中的信息，并分发给每个插件
 	void handOutMsg();
+
+	static int loadDir(const string& dir_path);	// 检查文件夹
 };
 
-#define Process (*MainProcess::getMainProcessObj())
-#define ProcessPtr MainProcess::getMainProcessObj()
+#define MainProc (*MainProcess::getMainProcessObj())
+#define MainProcPtr MainProcess::getMainProcessObj()
 
 #endif // !MAINPROCESS_H

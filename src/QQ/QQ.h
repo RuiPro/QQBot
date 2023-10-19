@@ -1,8 +1,6 @@
 #ifndef QQ_H
 #define QQ_H
 
-#define LIBQQ_VERSION "1.0.0"
-
 #include <string>
 #include <vector>
 #include <utility>
@@ -111,8 +109,8 @@ public:
 	// 【get】这些函数用以获取Bot的信息
 	unsigned int getThisBotID() const;									// 获取Bot的QQ号
 	string getThisBotNickname() const;									// 获取Bot的昵称
-	bool getThisBotHasAdmin() const;									// 判断是否拥有管理员
-	QQFriend getThisBotAdmin() const;									// 获取管理员
+	bool getThisBotHasAdmin(unsigned int id) const;						// 判断是否拥有管理员
+	vector<unsigned int> getThisBotAdminList() const;					// 获取管理员ID
 	int getThisBotFriendNum() const;									// 获取好友数量
 	int getThisBotUFriendNum() const;									// 获取单向好友数量
 	int getThisBotGroupNum() const;										// 获取群数量
@@ -134,7 +132,9 @@ public:
 	void printGroupList() const;										// 输出群列表
 
 	// 【set】这些函数用以手动设置Bot的某些信息
-	int setThisBotAdmin(unsigned int admin_id);							// 设置管理员【功能待完善】
+	int setAddThisBotAdmin(unsigned int admin_id);						// 设置管理员
+	int setRemoveThisBotAdmin(unsigned int admin_id);					// 设置管理员
+
 	void setCqhttpAddr(const string& addr);
 	void setUseCqhttpCache(bool flag);
 	void setCqhttpAccessToken(const string& token);
@@ -177,6 +177,7 @@ public:
 	int applySendGroupMsg(unsigned int group_id, QQMessage& msg);				// 发送群聊信息
 	int applySendPrivateForwardMsg(unsigned int friend_id, QQMessage& msg);	// 发送私聊合并信息
 	int applySendGroupeForwardMsg(unsigned int group_id, QQMessage& msg);		// 发送群聊合并信息
+	int applySendToAdmin(QQMessage& msg);										// 发送给管理员
 	int applyRemoveFriend(unsigned int friend_id);								// 删除好友
 	int applyRemoveUFriend(unsigned int ufriend_id);							// 删除单向好友
 	int applyRemoveGroup(unsigned int group_id, bool dissolve = false);			// 退出群聊与解散，只有当bot是群主时解散有效
@@ -220,7 +221,7 @@ private:
 
 	SQLiteClient* sqlite_c = nullptr;		// 内存数据库
 	unsigned int m_id = 0;					// Bot的QQ号
-	unsigned int m_administrator_id = 0;	// Bot的管理员
+	vector<unsigned int> m_admin_list;		// Bot的管理员列表
 	string m_nickname;						// Bot的昵称
 	string m_cqhttp_addr;					// go-cqhttp的地址
 	string m_cqhttp_access_token;			// go-cqhttp的access token
