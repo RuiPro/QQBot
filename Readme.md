@@ -2,7 +2,7 @@
 
 这是一个C/C++编写的、与[go-cqhttp](https://github.com/Mrs4s/go-cqhttp)进行交互实现的QQ机器人
 
-> 2023.10.11 go-cqhttp开发团队因tx的堵截(Mrs4s/go-cqhttp#2471)，已无力维护项目，但目前仍可继续使用[qsign](https://github.com/fuqiuluo/unidbg-fetch-qsign)维持登录，在不久的将来这种方式也将失效。
+> 2023.10.11 go-cqhttp开发团队因tx的堵截[go-cqhttp#2471](Mrs4s/go-cqhttp#2471)，已无力维护项目，但目前仍可继续使用[qsign](https://github.com/fuqiuluo/unidbg-fetch-qsign)维持登录，在不久的将来这种方式也将失效。
 >
 > 新的解决方案已经出现，此项目也将等待新的解决方案稳定进而迁移。
 
