@@ -107,6 +107,7 @@ void TimerEventCB(evutil_socket_t fd, short event_t, void* cb_arg) {
 }
 
 event* MainProcess::addTimerTask(const TimeVal& time, const std::function<void()>& task) {
+	if (!is_running) return nullptr;
 	timeval tv = time;
 	event* tev = nullptr;
 	if (tv.tv_sec == 0 && tv.tv_usec == 0) return tev;
@@ -119,6 +120,11 @@ event* MainProcess::addTimerTask(const TimeVal& time, const std::function<void()
 	}
 	*tev_ptr = tev;
 	unique_lock<mutex> locker(m_event_data->m_timer_task_set_mutex);
+	if (!is_running) {
+		evtimer_del(tev);
+		delete tev_ptr;
+		return nullptr;
+	}
 	m_event_data->m_timer_task_set->insert(std::move(std::make_pair(tev, task)));
 	return tev;
 }
@@ -208,6 +214,7 @@ MainProcess::MainProcess(int argc, char** argv) {
 }
 MainProcess::~MainProcess() {
 	loger.info() << "\033[31m\033[1mProgram exiting...\033[0m";
+	is_running = false;
 	loger.info() << "\033[31m\033[1mExiting event loop...\033[0m";
 	if (event_base_loopbreak(m_event_data->m_http_base) != 0) {
 		loger.error() << "\033[31m\033[1mExiting event http loop falid.\033[0m";
@@ -228,7 +235,6 @@ MainProcess::~MainProcess() {
 		delete m_event_data->m_timer_task_set;
 	}
 	loger.info() << "\033[31m\033[1mClosing ThreadPool...\033[0m";
-	is_running = false;
 	std::queue<string> empty;
 	m_msg_queue->swap(empty);
 	m_msg_queue_cv.notify_all();
@@ -459,22 +465,6 @@ void MainProcess::corePlugin(const string& msg) {
 					}
 				}
 			}
-			// 群成员信息变动
-			if (QQevent["notice_type"] == "group_admin") {
-				if (QQBot.fetchThisBotGroupMemberList(QQevent["group_id"]) == 0) {
-					loger.info() << "QQBot group " << QQevent["group_id"] << " updated.";
-				}
-			}
-			if (QQevent["notice_type"] == "notify" && QQevent["sub_type"] == "title") {
-				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
-					loger.info() << "QQGroupMember " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " updated.";
-				}
-			}
-			if (QQevent["notice_type"] == "group_card") {
-				if (QQBot.fetchThisBotGroupMemberInfo(QQevent["group_id"], QQevent["user_id"]) == 0) {
-					loger.info() << "QQGroupMember " << QQevent["user_id"] << " in group " << QQevent["group_id"] << " updated.";
-				}
-			}
 			// 好友变动时更新好友列表
 			if (QQevent["notice_type"] == "friend_add") {
 				loger.info() << "QQBot friend list changed.";
@@ -482,6 +472,12 @@ void MainProcess::corePlugin(const string& msg) {
 				QQBot.fetchThisBotUFriendList();
 				QQBot.printFriendList();
 				QQBot.printUFriendList();
+			}
+			// 群成员信息变动
+			if (QQevent["notice_type"] == "group_admin") {
+				if (QQBot.fetchThisBotGroupMemberList(QQevent["group_id"]) == 0) {
+					loger.info() << "Group admin in group " << QQevent["group_id"] << " updated.";
+				}
 			}
 			// 群内名片、头衔改变
 			if (QQevent["notice_type"] == "group_card") {
